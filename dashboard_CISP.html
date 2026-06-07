@@ -1108,7 +1108,7 @@ function selectProf(p, el){
           {label:'Completado', data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='completado').length), backgroundColor:'#27AE60',borderRadius:4},
           {label:'En proceso', data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='en proceso').length), backgroundColor:'#F39C12',borderRadius:4},
           {label:'Pendiente',  data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='pendiente').length),  backgroundColor:'#E74C3C',borderRadius:4},
-          {label:'Sin iniciar',data:stgLabels.map((_,s)=>autoEstado(r,s)===''?1:0).map((_,s)=>d.filter(r=>autoEstado(r,s)==='').length), backgroundColor:'#4A6A85',borderRadius:4},
+          {label:'Sin iniciar',data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s)==='').length), backgroundColor:'#4A6A85',borderRadius:4},
         ]
       },
       options:{responsive:true,maintainAspectRatio:false,
