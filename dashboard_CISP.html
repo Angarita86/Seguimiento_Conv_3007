@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard CISP · Seguimiento Acciones</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0B1622;--s1:#152233;--s2:#1C2E44;--s3:#233550;--bd:#2A4060;--tx:#DDE8F5;--tx2:#7FA3BF;--ac:#00C8D4;--ac2:#008FA0;--ok:#27AE60;--yn:#F39C12;--rd:#E74C3C;--gy:#4A6A85;--or:#D35400;--oj:#2980B9;--ni:#8E44AD;--font:'Segoe UI',system-ui,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--tx);font-family:var(--font);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* TOP BAR */
+.topbar{background:linear-gradient(90deg,#0A1F35,#0D2B45);padding:0 24px;display:flex;align-items:center;gap:20px;height:54px;border-bottom:2px solid var(--ac);flex-shrink:0;box-shadow:0 2px 20px rgba(0,200,212,.12)}
+.logo{width:36px;height:36px;background:var(--ac);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#0B1622;flex-shrink:0}
+.topbar-title{font-size:17px;font-weight:700;white-space:nowrap}.topbar-title span{color:var(--ac)}
+.topbar-divider{width:1px;height:28px;background:var(--bd)}
+/* NAV TABS */
+.nav-tabs{display:flex;gap:2px;flex:1}
+.nav-tab{padding:6px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--tx2);border:1px solid transparent;white-space:nowrap}
+.nav-tab:hover{color:var(--tx);background:var(--s2)}
+.nav-tab.active{background:var(--ac);color:#0B1622;border-color:var(--ac)}
+.topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.topbar-badge{background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--tx2)}
+/* PAGES */
+.page{display:none;flex:1;overflow:hidden;flex-direction:column}
+.page.active{display:flex}
+/* SCROLL AREA */
+.scroll{overflow-y:auto;flex:1;padding:20px 24px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+/* CARDS */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:var(--tx)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0}
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:16px;position:relative;overflow:hidden;cursor:default}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0}
+.kpi.c-ac::after{background:var(--ac)}.kpi.c-oj::after{background:var(--oj)}.kpi.c-ni::after{background:var(--ni)}
+.kpi.c-ok::after{background:var(--ok)}.kpi.c-yn::after{background:var(--yn)}.kpi.c-rd::after{background:var(--rd)}.kpi.c-or::after{background:var(--or)}
+.kpi-lbl{font-size:10px;color:var(--tx2);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:6px}
+.kpi-val{font-size:30px;font-weight:800;line-height:1}
+.kpi.c-ac .kpi-val{color:var(--ac)}.kpi.c-oj .kpi-val{color:var(--oj)}.kpi.c-ni .kpi-val{color:var(--ni)}
+.kpi.c-ok .kpi-val{color:var(--ok)}.kpi.c-yn .kpi-val{color:var(--yn)}.kpi.c-rd .kpi-val{color:var(--rd)}.kpi.c-or .kpi-val{color:var(--or)}
+.kpi-sub{font-size:10px;color:var(--tx2);margin-top:3px}
+/* CHARTS */
+.charts-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:1000px){.charts-3{grid-template-columns:1fr 1fr}}
+.chart-h{height:200px;position:relative}
+/* FILTERS (search page) */
+.filters-panel{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+.filter-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.f-label{font-size:11px;color:var(--tx2);font-weight:700;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+select,input[type=text],input[type=date]{background:var(--s2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;font-size:12px;outline:none;min-width:140px;cursor:pointer}
+select:focus,input:focus{border-color:var(--ac)}
+.pill-row{display:flex;gap:6px;flex-wrap:wrap}
+.pill{padding:5px 13px;border-radius:16px;border:1px solid var(--bd);font-size:11px;cursor:pointer;transition:all .15s;background:var(--s2);white-space:nowrap}
+.pill.active{background:var(--ac);color:#0B1622;border-color:var(--ac);font-weight:700}
+.pill:hover:not(.active){border-color:var(--ac);color:var(--ac)}
+.btn{padding:7px 16px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer;border:none;transition:all .2s}
+.btn-ac{background:var(--ac);color:#0B1622}.btn-ac:hover{background:var(--ac2)}
+.btn-sec{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}.btn-sec:hover{border-color:var(--ac);color:var(--ac)}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
+/* TABLE */
+.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 280px)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#0D1E30;color:var(--tx2);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;padding:10px 10px;position:sticky;top:0;z-index:2;white-space:nowrap;border-bottom:1px solid var(--bd)}
+tbody tr{border-bottom:1px solid rgba(42,64,96,.35);cursor:pointer;transition:background .12s}
+tbody tr:hover{background:rgba(0,200,212,.05)}
+tbody td{padding:8px 10px;vertical-align:middle}
+.src-nm{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:12px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap}
+.b-oj{background:rgba(41,128,185,.15);color:var(--oj);border:1px solid rgba(41,128,185,.3)}
+.b-ni{background:rgba(142,68,173,.15);color:var(--ni);border:1px solid rgba(142,68,173,.3)}
+.b-sus{background:rgba(231,76,60,.15);color:var(--rd);border:1px solid rgba(231,76,60,.3)}
+/* SEMÁFORO */
+.sm-wrap{text-align:center}
+.sm{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;border:2px solid;transition:all .15s;cursor:pointer}
+.sm:hover{transform:scale(1.2)}
+.sm-gy{background:rgba(74,106,133,.15);border-color:var(--gy);color:var(--gy)}
+.sm-rd{background:rgba(231,76,60,.2);border-color:var(--rd);color:var(--rd)}
+.sm-yn{background:rgba(243,156,18,.2);border-color:var(--yn);color:var(--yn)}
+.sm-ok{background:rgba(39,174,96,.2);border-color:var(--ok);color:var(--ok)}
+.sm-or{background:rgba(211,84,0,.2);border-color:var(--or);color:var(--or)}
+.sm-sus{background:rgba(127,140,141,.15);border-color:#7F8C8D;color:#7F8C8D}
+.venc{font-size:9px;color:var(--rd);margin-top:2px;line-height:1}
+.kobo-d{width:5px;height:5px;border-radius:50%;margin:2px auto 0;display:block}
+.ko-ok{background:var(--ok)}.ko-no{background:var(--rd)}.ko-na{background:var(--gy)}
+/* PROGRESS BAR */
+.pbar-wrap{display:flex;align-items:center;gap:5px;min-width:70px}
+.pbar{flex:1;height:5px;background:var(--bd);border-radius:3px;overflow:hidden}
+.pbar-fill{height:100%;border-radius:3px;transition:width .3s}
+/* ALERT TABLE */
+.alert-row{background:rgba(231,76,60,.06);border-left:3px solid var(--rd)}
+.alert-row:hover{background:rgba(231,76,60,.1)!important}
+.alert-tag{background:rgba(231,76,60,.15);color:var(--rd);border:1px solid rgba(231,76,60,.3);border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700}
+/* PROFESSIONAL */
+.prof-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.prof-card{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:16px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.prof-card:hover,.prof-card.active{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset}
+.prof-name{font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ac)}
+.prof-mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pms{background:var(--s2);border-radius:6px;padding:7px;text-align:center}
+.pms-val{font-size:18px;font-weight:800}
+.pms-lbl{font-size:9px;color:var(--tx2);text-transform:uppercase}
+.prof-pipeline{margin-top:10px;display:flex;gap:3px}
+.pp-seg{flex:1;height:6px;border-radius:3px}
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:900;display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--bd);border-radius:16px;width:100%;max-width:820px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.mh{padding:18px 22px;border-bottom:1px solid var(--bd);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;background:var(--s1);z-index:2}
+.mh-t{font-size:15px;font-weight:700;line-height:1.3}
+.mh-sub{font-size:11px;color:var(--tx2);margin-top:3px}
+.mc{padding:18px 22px}
+.mf{padding:14px 22px;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--s1)}
+.x-btn{background:none;border:none;color:var(--tx2);font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
+.x-btn:hover{color:var(--tx)}
+/* STAGE FORMS */
+.stg{border:1px solid var(--bd);border-radius:9px;overflow:hidden;margin-bottom:10px}
+.stg-h{padding:10px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.stg-b{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;display:none}
+.stg-b.open{display:grid}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+.fl{font-size:10px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px}
+.fc{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:7px 10px;color:var(--tx);font-size:12px;outline:none;transition:border-color .2s;width:100%}
+.fc:focus{border-color:var(--ac)}
+/* Stage colors */
+.stg-0 .stg-h{background:rgba(41,128,185,.12);color:#5DADE2;border-bottom:1px solid rgba(41,128,185,.2)}
+.stg-1 .stg-h{background:rgba(142,68,173,.12);color:#BB8FCE;border-bottom:1px solid rgba(142,68,173,.2)}
+.stg-2 .stg-h{background:rgba(26,188,156,.12);color:#76D7C4;border-bottom:1px solid rgba(26,188,156,.2)}
+.stg-3 .stg-h{background:rgba(211,84,0,.12);color:#E59866;border-bottom:1px solid rgba(211,84,0,.2)}
+.stg-4 .stg-h{background:rgba(231,76,60,.12);color:#F1948A;border-bottom:1px solid rgba(231,76,60,.2)}
+.stg-5 .stg-h{background:rgba(39,174,96,.12);color:#82E0AA;border-bottom:1px solid rgba(39,174,96,.2)}
+/* INFO GRID */
+.info-g{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--s2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px}
+.ig-l{color:var(--tx2)}.ig-v{color:var(--tx);font-weight:500}
+/* LEGEND */
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:10px 14px;background:rgba(0,0,0,.2);border-radius:8px;margin-bottom:12px}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--tx2)}
+.ld{width:10px;height:10px;border-radius:50%}
+/* ALERT BOX */
+.abox{background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.25);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--rd)}
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;padding:11px 18px;border-radius:9px;font-size:12px;font-weight:700;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.toast.show{display:block;animation:su .3s ease}
+@keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.t-ok{background:var(--ok);color:#fff}.t-er{background:var(--rd);color:#fff}
+/* EXTERNAL LINK BUTTONS */
+.ext-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid;text-decoration:none;transition:all .2s;white-space:nowrap;cursor:pointer;}
+.ext-btn:hover{filter:brightness(1.2);transform:translateY(-1px);}
+.ext-btn:hover + .drive-tip, div:hover > .drive-tip{opacity:1!important;}
+</style>
+</head>
+<body>
+<!-- TOP BAR -->
+
+<!-- LOADING SCREEN -->
+<div id="loadingScreen" style="position:fixed;inset:0;background:#0B1622;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="width:48px;height:48px;background:#00C8D4;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#0B1622;animation:pulse 1.5s infinite;">C</div>
+  <div style="color:#DDE8F5;font-size:18px;font-weight:700;">Cargando datos...</div>
+  <div id="loaderMsg" style="color:#7FA3BF;font-size:13px;">Conectando con Google Sheets</div>
+  <div style="width:200px;height:4px;background:#1C2E44;border-radius:2px;overflow:hidden;">
+    <div style="height:100%;background:#00C8D4;border-radius:2px;animation:loading-bar 2s infinite;"></div>
+  </div>
+</div>
+<style>
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes loading-bar{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}
+</style>
+
+<div class="topbar">
+  <div class="logo">C</div>
+  <div class="topbar-title">Dashboard <span>CISP</span></div>
+  <div class="topbar-divider"></div>
+  <nav class="nav-tabs">
+    <div class="nav-tab active" onclick="showPage('overview')">📊 Resumen</div>
+    <div class="nav-tab" onclick="showPage('search')">🔍 Buscar / Tabla</div>
+    <div class="nav-tab" onclick="showPage('prof')">👤 Por Profesional</div>
+    <div class="nav-tab" onclick="showPage('alerts')">⚠️ Alertas</div>
+  </nav>
+  <div class="topbar-divider"></div>
+  <!-- ENLACES EXTERNOS -->
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <a href="https://nascisp02.myqnapcloud.com:13443/cgi-bin/" target="_blank" class="ext-btn" style="background:#1A3A5C;border-color:#2980B9;color:#5DADE2;">🗄 NAS</a>
+    <a href="https://eu.kobotoolbox.org/accounts/login/" target="_blank" class="ext-btn" style="background:#1A3A2A;border-color:#27AE60;color:#82E0AA;">📋 KOBO</a>
+    <a href="https://documentos.app.cispcolombia.org/login" target="_blank" class="ext-btn" style="background:#2A1A3A;border-color:#8E44AD;color:#BB8FCE;">📞 Contactabilidad</a>
+    <div style="position:relative;">
+      <a href="https://drive.google.com/drive/my-drive" target="_blank" class="ext-btn" style="background:#3A2A1A;border-color:#D35400;color:#E59866;" title="⚠️ Abrir desde la cuenta reparacion.colectiva@cispcolombia.org">🗂 DRIVE ⚠️</a>
+      <div style="position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;color:#E59866;background:#0B1622;padding:2px 5px;border-radius:3px;pointer-events:none;opacity:0;transition:opacity .2s;" class="drive-tip">Usar cuenta reparacion.colectiva</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-badge" id="filtBadge">156 registros</span>
+    <span id="lastLoadBadge" style="font-size:11px;color:var(--tx2);cursor:pointer;" onclick="loadFromSheets()" title="Haz clic para actualizar">🔄 --:--</span>
+    <button class="btn btn-sec btn-sm" onclick="loadFromSheets()" title="Actualizar desde Google Sheets">⟳ Actualizar</button>
+    <button class="btn btn-sec btn-sm" onclick="exportJSON()">⬇ Exportar</button>
+  </div>
+</div>
+
+<!-- PAGE: OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div class="scroll">
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="charts-3">
+      <div class="card"><div class="card-title"><span class="dot"></span>Por Tipo de Sujeto</div><div class="chart-h"><canvas id="cTipo"></canvas></div></div>
+      <div class="card"><div class="card-title"><span class="dot"></span>Por MacroRegión</div><div class="chart-h"><canvas id="cRegion"></canvas></div></div>
+      <div class="card"><div class="card-title"><span class="dot"></span>Estado de la Acción</div><div class="chart-h"><canvas id="cEstado"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <div class="card-title"><span class="dot"></span>Avance por Etapa (Global)</div>
+      <div class="chart-h" style="height:160px;"><canvas id="cEtapas"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: SEARCH/TABLE -->
+<div class="page" id="page-search">
+  <div class="scroll">
+    <div class="filters-panel">
+      <div class="filter-row" style="margin-bottom:10px;">
+        <span class="f-label">Tipo:</span>
+        <div class="pill-row">
+          <span class="pill active" onclick="setTipo('',this)">Todos</span>
+          <span class="pill" onclick="setTipo('Ordenes Judiciales',this)">🔵 Órdenes Judiciales</span>
+          <span class="pill" onclick="setTipo('Acciones no implementadas',this)">🟣 Acc. No Implementadas</span>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="f-label">Responsable:</span>
+        <select id="fResp" onchange="doFilter()"><option value="">Todos</option></select>
+        <span class="f-label">Zona:</span>
+        <select id="fZona" onchange="doFilter()"><option value="">Todas</option></select>
+        <span class="f-label">Etapa:</span>
+        <select id="fEtapa" onchange="doFilter()">
+          <option value="">Cualquier etapa</option>
+          <option value="0">1. Diagnóstico</option>
+          <option value="1">2. Contactabilidad</option>
+          <option value="2">3. Validación</option>
+          <option value="3">4. Radicación</option>
+          <option value="4">5. Firma</option>
+          <option value="5">6. Docs Impl.</option>
+        </select>
+        <div style="position:relative;">
+          <input type="text" id="fSearch" placeholder="🔍 Buscar SRC, municipio..." oninput="doFilter()" style="min-width:220px;">
+        </div>
+        <button class="btn btn-sec btn-sm" onclick="clearFilters()">✕ Limpiar</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span style="font-size:10px;font-weight:700;color:var(--tx2);">SEMÁFORO:</span>
+      <div class="li"><div class="ld" style="background:var(--gy)"></div>Sin diligenciar</div>
+      <div class="li"><div class="ld" style="background:var(--rd)"></div>Pendiente / Vencido</div>
+      <div class="li"><div class="ld" style="background:var(--yn)"></div>En proceso</div>
+      <div class="li"><div class="ld" style="background:var(--ok)"></div>Completado + KOBO ✓</div>
+      <div class="li"><div class="ld" style="background:var(--or)"></div>Completado sin KOBO</div>
+      <div class="li"><div class="ld" style="background:#7F8C8D"></div>Suspendida</div>
+      <span style="font-size:10px;color:var(--tx2);margin-left:8px;">· El punto bajo cada semáforo indica estado KOBO</span>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;font-weight:700;">Detalle acciones por SRC</span>
+        <span id="tblCount" style="font-size:11px;color:var(--tx2);"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>ID</th>
+              <th>Cód. Acción</th>
+              <th>SRC / Nombre</th>
+              <th>Zona</th>
+              <th>MacroRegión</th>
+              <th>Responsable</th>
+              <th>Estado Acción</th>
+              <th style="text-align:center;min-width:70px;color:#5DADE2;">① Diagnóst.</th>
+              <th style="text-align:center;min-width:70px;color:#BB8FCE;">② Contact.</th>
+              <th style="text-align:center;min-width:70px;color:#76D7C4;">③ Validación</th>
+              <th style="text-align:center;min-width:70px;color:#E59866;">④ Radicac.</th>
+              <th style="text-align:center;min-width:70px;color:#F1948A;">⑤ Firma</th>
+              <th style="text-align:center;min-width:70px;color:#82E0AA;">⑥ Docs Impl.</th>
+              <th>Avance</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tblBody"></tbody>
+        </table>
+        <div id="noData" style="text-align:center;padding:40px;color:var(--tx2);display:none;">Sin registros con los filtros actuales.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: PROFESSIONAL -->
+<div class="page" id="page-prof">
+  <div class="scroll">
+    <div class="prof-grid" id="profGrid"></div>
+    <div class="card" id="profDetail" style="display:none;">
+      <div class="card-title"><span class="dot"></span>Detalle: <span id="profDetailName"></span></div>
+      <div style="height:200px;position:relative;"><canvas id="cProfDetail"></canvas></div>
+      <div id="profDetailTable"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: ALERTS -->
+<div class="page" id="page-alerts">
+  <div class="scroll">
+    <div class="card" style="padding:14px 16px;margin-bottom:14px;">
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:12px;">
+        📋 <strong>Reglas de alerta:</strong> &nbsp;
+        <span style="color:var(--rd);">● Diagnóstico pendiente</span> = cualquier registro sin información inicial &nbsp;|&nbsp;
+        <span style="color:var(--rd);">● Etapa vencida</span> = más de <strong>8 días</strong> sin avanzar a la siguiente fase &nbsp;|&nbsp;
+        <span style="color:#7F8C8D;">● Suspendidas</span> no acumulan tiempo
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span class="f-label">Profesional:</span>
+        <div class="pill-row" id="alertProfPills">
+          <span class="pill active" onclick="setAlertProf('',this)">Todos</span>
+        </div>
+        <span class="f-label" style="margin-left:8px;">Tipo alerta:</span>
+        <select id="alertTipoFilt" onchange="renderAlerts()" style="min-width:160px;">
+          <option value="">Todas las alertas</option>
+          <option value="diag">Sin diagnóstico</option>
+          <option value="venc">Etapa vencida</option>
+        </select>
+        <span class="f-label" style="margin-left:8px;">Etapa:</span>
+        <select id="alertEtapaFilt" onchange="renderAlerts()" style="min-width:160px;">
+          <option value="">Todas las etapas</option>
+          <option value="0">① Diagnóstico</option>
+          <option value="1">② Contactabilidad</option>
+          <option value="2">③ Validación</option>
+          <option value="3">④ Radicación</option>
+          <option value="4">⑤ Firma</option>
+          <option value="5">⑥ Docs Impl.</option>
+        </select>
+        <button class="btn btn-sec btn-sm" onclick="clearAlertFilters()">✕ Limpiar</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;">Registros con alertas activas</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="alertCount" style="font-size:11px;color:var(--tx2);"></span>
+          <span id="alertProfLabel" style="font-size:11px;color:var(--ac);font-weight:700;display:none;"></span>
+        </div>
+      </div>
+      <div class="tbl-wrap" style="max-height:calc(100vh - 300px);">
+        <table><thead><tr>
+          <th>SRC</th><th>Cód. Acción</th><th>Responsable</th><th>Alerta</th><th>Etapa</th><th>Días</th><th></th>
+        </tr></thead><tbody id="alertBody"></tbody></table>
+        <div id="noAlerts" style="text-align:center;padding:40px;color:var(--tx2);display:none;">✅ Sin alertas activas con los filtros seleccionados</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="closeIf(event)">
+  <div class="modal">
+    <div class="mh">
+      <div><div class="mh-t" id="mTitle"></div><div class="mh-sub" id="mSub"></div></div>
+      <button class="x-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mc" id="mBody"></div>
+    <div class="mf">
+      <button class="btn btn-sec" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-ac" onclick="saveRec()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSrL3i329_PVWCZwZYk6I7Af2gnyPPSfph2ydEZxkNHq5abL_BKK6OQZJC542D2DA/pub?gid=1413744520&single=true&output=csv';
+let RAW = [];
+
+// ══════════════════════════════════════════════════════
+// CSV PARSER
+// ══════════════════════════════════════════════════════
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      result.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function normalizeEstado(v) {
+  if (!v) return 'Sin estado';
+  const l = v.trim().toLowerCase();
+  if (l === 'aprobada') return 'Aprobada';
+  if (l.includes('implementaci')) return 'En implementación';
+  if (l.includes('gesti')) return 'En gestión';
+  if (l.includes('rehabilit')) return 'Rehabilitación';
+  if (l.includes('suspend')) return 'Suspendida';
+  return v.trim();
+}
+
+function csvToRecords(csvText) {
+  const lines = csvText.split('\n').filter(l => l.trim());
+  if (lines.length < 3) return [];
+
+  // Row 1 = group headers (skip), Row 2 = column names, Row 3+ = data
+  const headers = parseCSVLine(lines[1]);  // 0-indexed: row index 1 = row 2
+
+  // Field name mapping from CSV header to internal key
+  const FIELD_MAP = {
+    'Tipo':'tipo','ID':'id','Caso_Nombre':'nombre','Caso_Tipo':'caso_tipo',
+    'Fase':'fase','Caso_Categoria':'categoria','Zona':'zona','MacroRegión':'macroregion',
+    'Caso_DT':'dt','Caso_Mpio':'municipio','Caso_Dpto':'departamento','año':'anio',
+    'Medida_Id':'medida_id','Producto / Medida':'medida','Acción_Id':'accion_id',
+    'Actividad / Acción':'accion','Acción_Tipo':'accion_tipo',
+    'Estado de la acción ':'estado_accion','Estado de la acción':'estado_accion',
+    'OBSERVACIONES/ OTROS ':'observaciones','OBSERVACIONES/ OTROS':'observaciones',
+    'DESCRIPCIÓN DETALLADA DE LA ACCION ':'descripcion','DESCRIPCIÓN DETALLADA DE LA ACCION':'descripcion',
+    'Responsable CISP':'responsable',
+    'DOCUMENTO PIRC':'doc_pirc','MATRIZ CADENA DE VALOR':'doc_cadena',
+    'ACTA REUNIÓN':'doc_acta_reunion','ACTA DE CONCERTACIÓN':'doc_concertacion',
+    'ACTA IMPLEMENTACIÓN ACCIÓN':'doc_implementacion',
+    'Reunión realizada':'reunion_realizada','Fecha Reunión':'fecha_reunion',
+    'Representante SRC':'representante_src',
+    'Revisión Kobo':'rev_kobo','Revisión NAS':'rev_nas','Revisión DRIVE':'rev_drive',
+    'Observación':'obs_interna','correo con formatos':'correo_formatos',
+    'correo de respuesta':'correo_respuesta',
+    'validación de documentos inicial':'diag_val_docs',
+    'cargue de información':'diag_cargue','Documentos pendientes':'diag_docs_pend',
+    'Estado_Diag':'diag_estado','Fecha_Diag':'diag_fecha','KOBO_Diag':'diag_kobo',
+    'Socialización':'cont_socializacion','Envio de formatos':'cont_envio',
+    'Recepción de formatos':'cont_recepcion',
+    'Estado_Cont':'cont_estado','Fecha_Cont':'cont_fecha','KOBO_Cont':'cont_kobo',
+    'Revisión documental':'val_revision','Cotizaciones':'val_cotizaciones',
+    'Novedad':'val_novedad','Responsable':'val_responsable_nov',
+    'Novedad finalizada':'val_novedad_fin',
+    'Estado_Vali':'val_estado','Fecha_Vali':'val_fecha','KOBO_Vali':'val_kobo',
+    'Documentos en Drive':'rad_docs_drive','Notificación a coordinación':'rad_notif',
+    'Estado_Radi':'rad_estado','Fecha_Radi':'rad_fecha','KOBO_Radi':'rad_kobo',
+    'Correo de acuerdos corporativos':'firma_correo',
+    'Profesional acompaña misión':'firma_profesional',
+    'Estado_Firm':'firma_estado','Fecha_Firm':'firma_fecha','KOBO_Firm':'firma_kobo',
+    'Acta de entrega':'doc_acta','Informe operativo':'doc_informe',
+    'Registros fotografico':'doc_fotos',
+    'Bases de los participantes a los cursos':'doc_bases',
+    'Estado_DocI':'doc_estado','Fecha_DocI':'doc_fecha','KOBO_DocI':'doc_kobo',
+  };
+
+  const DEFAULT_REC = {
+    tipo:'',id:'',nombre:'',caso_tipo:'',fase:'',categoria:'',zona:'',macroregion:'',
+    dt:'',municipio:'',departamento:'',anio:'',medida_id:'',medida:'',accion_id:'',
+    accion:'',accion_tipo:'',estado_accion:'',observaciones:'',descripcion:'',
+    responsable:'',doc_pirc:'',doc_cadena:'',doc_acta_reunion:'',doc_concertacion:'',
+    doc_implementacion:'',reunion_realizada:'',fecha_reunion:'',representante_src:'',
+    rev_kobo:'',rev_nas:'',rev_drive:'',obs_interna:'',correo_formatos:'',
+    correo_respuesta:'',
+    diag_val_docs:'',diag_cargue:'',diag_docs_pend:'',
+    diag_estado:'',diag_fecha:'',diag_kobo:'',
+    cont_socializacion:'',cont_envio:'',cont_recepcion:'',
+    cont_estado:'',cont_fecha:'',cont_kobo:'',
+    val_revision:'',val_cotizaciones:'',val_novedad:'',val_responsable_nov:'',val_novedad_fin:'',
+    val_estado:'',val_fecha:'',val_kobo:'',
+    rad_docs_drive:'',rad_notif:'',
+    rad_estado:'',rad_fecha:'',rad_kobo:'',
+    firma_correo:'',firma_profesional:'',
+    firma_estado:'',firma_fecha:'',firma_kobo:'',
+    doc_acta:'',doc_informe:'',doc_fotos:'',doc_bases:'',
+    doc_estado:'',doc_fecha:'',doc_kobo:'',
+    suspension_fecha:'',reactivacion_fecha:'',
+  };
+
+  const records = [];
+  for (let r = 2; r < lines.length; r++) {  // start at index 2 = row 3
+    const cells = parseCSVLine(lines[r]);
+
+    // Strong filter: columns A(0)=Tipo, B(1)=ID, C(2)=Nombre must have real data
+    const colTipo  = (cells[0] || '').trim();
+    const colId    = (cells[1] || '').trim();
+    const colNombre= (cells[2] || '').trim();
+
+    // Skip completely empty rows
+    if (!colTipo && !colId && !colNombre) continue;
+
+    // Skip rows that look like repeated headers
+    if (colTipo === 'Tipo' || colId === 'ID') continue;
+
+    // Skip rows where Tipo is not one of the two valid values
+    const tipoLower = colTipo.toLowerCase();
+    const validTipo = tipoLower.includes('judicial') || tipoLower.includes('implementada');
+    if (!validTipo) continue;
+
+    const rec = {...DEFAULT_REC};
+    headers.forEach((h, i) => {
+      const key = FIELD_MAP[h.trim()];
+      if (key && i < cells.length) {
+        const val = (cells[i] || '').trim();
+        rec[key] = val === 'nan' || val === 'NaN' ? '' : val;
+      }
+    });
+    rec.estado_accion = normalizeEstado(rec.estado_accion);
+    records.push(rec);
+  }
+  return records;
+}
+
+// ══════════════════════════════════════════════════════
+// LOAD FROM GOOGLE SHEETS
+// ══════════════════════════════════════════════════════
+let lastLoadTime = null;
+
+// ── FETCH STRATEGY: direct → proxy1 → proxy2 ───────────
+// Needed because browsers block file:// → https:// requests (CORS)
+const FETCH_ATTEMPTS = [
+  { label: 'Directo',          url: () => SHEETS_URL },
+  { label: 'Proxy allorigins', url: () => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(SHEETS_URL) },
+  { label: 'Proxy corsproxy',  url: () => 'https://corsproxy.io/?' + encodeURIComponent(SHEETS_URL) },
+];
+
+async function tryFetch(url, timeoutMs = 12000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    // Sanity: must look like CSV (has commas, multiple lines, not HTML error page)
+    if (!text || text.length < 50 || text.trim().startsWith('<')) throw new Error('Respuesta no es CSV válido');
+    return text;
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
+async function loadFromSheets() {
+  showLoader(true, 'Conectando con Google Sheets…');
+  let csv = null;
+  let usedLabel = '';
+
+  for (const attempt of FETCH_ATTEMPTS) {
+    try {
+      showLoader(true, `Intentando: ${attempt.label}…`);
+      csv = await tryFetch(attempt.url());
+      usedLabel = attempt.label;
+      break;
+    } catch(e) {
+      console.warn(`[CISP] ${attempt.label} falló:`, e.message);
+    }
+  }
+
+  if (csv) {
+    RAW = csvToRecords(csv);
+    lastLoadTime = new Date();
+    updateLastLoad();
+    ALL = mergeData();
+    initSelects();
+    initAlertProfPills();
+    doFilter();
+    renderCharts();
+    showLoader(false);
+    showToast(`✅ Datos cargados (${usedLabel}) · ${RAW.length} registros`, 't-ok');
+  } else {
+    showLoader(false);
+    showErrorScreen();
+  }
+}
+
+function showErrorScreen() {
+  const existing = document.getElementById('errorScreen');
+  if (existing) { existing.style.display = 'flex'; return; }
+  const div = document.createElement('div');
+  div.id = 'errorScreen';
+  div.style.cssText = 'position:fixed;inset:0;background:#0B1622;z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;';
+  div.innerHTML = `
+    <div style="font-size:48px;">⚠️</div>
+    <div style="font-size:20px;font-weight:700;color:#E74C3C;">Error al conectar con Google Sheets</div>
+    <div style="max-width:520px;background:#162336;border:1px solid #2A4060;border-radius:12px;padding:24px;font-size:13px;color:#8BAABF;line-height:1.8;">
+      <p style="color:#DDE8F5;font-weight:700;margin-bottom:12px;">¿Por qué ocurre esto?</p>
+      <p>Los navegadores bloquean las solicitudes a internet cuando el archivo se abre directamente desde el disco duro (<code style="background:#0B1622;padding:2px 5px;border-radius:4px;">file://</code>).</p>
+      <p style="margin-top:12px;color:#DDE8F5;font-weight:700;">Soluciones:</p>
+      <ol style="margin-left:18px;margin-top:6px;display:flex;flex-direction:column;gap:8px;">
+        <li><strong style="color:#00C8D4;">Opción A (más fácil):</strong> Abre el archivo con VS Code y usa la extensión <em>Live Server</em>, o usa Python:
+          <br><code style="background:#0B1622;padding:4px 8px;border-radius:4px;display:block;margin-top:4px;">python -m http.server 8080</code>
+          Luego abre: <code style="background:#0B1622;padding:2px 5px;border-radius:4px;">http://localhost:8080</code>
+        </li>
+        <li><strong style="color:#00C8D4;">Opción B:</strong> Sube el HTML a cualquier servidor web (GitHub Pages, Netlify, Google Sites).</li>
+        <li><strong style="color:#00C8D4;">Opción C:</strong> En Chrome, activa el acceso local con este comando:<br>
+          <code style="background:#0B1622;padding:4px 8px;border-radius:4px;display:block;margin-top:4px;font-size:11px;">chrome --disable-web-security --user-data-dir=/tmp/chrome</code>
+        </li>
+      </ol>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="loadFromSheets();document.getElementById('errorScreen').style.display='none';"
+        style="background:#00C8D4;color:#0B1622;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
+        ⟳ Reintentar
+      </button>
+      <button onclick="document.getElementById('errorScreen').style.display='none'"
+        style="background:#1C2E44;color:#DDE8F5;border:1px solid #2A4060;padding:10px 24px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
+        Ver dashboard (sin datos)
+      </button>
+    </div>
+  `;
+  document.body.appendChild(div);
+}
+
+function updateLastLoad() {
+  const el = document.getElementById('lastLoadBadge');
+  if (el && lastLoadTime) {
+    el.textContent = '🔄 ' + lastLoadTime.toLocaleTimeString('es-CO');
+    el.title = 'Última actualización: ' + lastLoadTime.toLocaleString('es-CO');
+  }
+}
+
+function showLoader(show, msg) {
+  const el = document.getElementById('loadingScreen');
+  if (!el) return;
+  el.style.display = show ? 'flex' : 'none';
+  if (msg) {
+    const m = document.getElementById('loaderMsg');
+    if (m) m.textContent = msg;
+  }
+}
+const SK = 'cisp_v2_edits';
+const DAYS_LIMIT = 8;
+
+function loadEdits(){try{return JSON.parse(localStorage.getItem(SK)||'{}')}catch{return{}}}
+function saveEdits(e){localStorage.setItem(SK,JSON.stringify(e))}
+function recKey(r){return r.id+'_'+r.accion_id}
+
+function mergeData(){
+  const ed = loadEdits();
+  return RAW.map((r,i)=>{
+    const k = recKey(r);
+    const merged = {...r,...(ed[k]||{})};
+    merged._i = i;
+    merged._k = k;
+    return merged;
+  });
+}
+
+let ALL = mergeData();
+let FILTERED = [...ALL];
+let fTipo = '', fResp = '', fZona = '', fSearch = '', fEtapa = '';
+let charts = {};
+let editIdx = null;
+let activeProfChart = null;
+
+// ══════════════════════════════════════════════════════
+// AUTO-DETECT SEMÁFORO from existing data
+// ══════════════════════════════════════════════════════
+function hasSi(v){return v && (v.toLowerCase().trim()==='si'||v.toLowerCase().trim()==='sí'||v.toLowerCase().includes('si -')||v.toLowerCase()==='ok')}
+function hasVal(v){return v && v.trim()!=='' && v.trim().toLowerCase()!=='nan'}
+
+function autoEstado(rec, stage){
+  // If manually set, use that
+  const manualMap = ['diag_estado','cont_estado','val_estado','rad_estado','firma_estado','doc_estado'];
+  const manual = rec[manualMap[stage]];
+  if(hasVal(manual)) return manual;
+
+  // Auto-detect from existing fields
+  switch(stage){
+    case 0: { // Diagnóstico — ALWAYS required
+      const hasAny = hasVal(rec.diag_val_docs)||hasVal(rec.diag_cargue)||hasVal(rec.diag_docs_pend);
+      if(hasAny) return 'En proceso';
+      return 'Pendiente'; // Always red if no data
+    }
+    case 1: { // Contactabilidad
+      const reunOk = hasSi(rec.reunion_realizada)||hasVal(rec.reunion_realizada);
+      const corrOk = hasVal(rec.correo_formatos)&&hasVal(rec.correo_respuesta);
+      const socOk = hasVal(rec.cont_socializacion);
+      const envOk = hasVal(rec.cont_envio)&&hasVal(rec.cont_recepcion);
+      if(envOk&&corrOk) return 'Completado';
+      if(reunOk||socOk||hasVal(rec.cont_envio)) return 'En proceso';
+      return ''; // Not yet started
+    }
+    case 2: { // Validación
+      const revOk = hasSi(rec.rev_kobo);
+      const docOk = hasVal(rec.val_revision);
+      const cotOk = hasVal(rec.val_cotizaciones);
+      if(revOk&&docOk&&cotOk) return 'Completado';
+      if(revOk||docOk||cotOk||hasVal(rec.val_novedad)) return 'En proceso';
+      return '';
+    }
+    case 3: { // Radicación — ACTA CONCERTACIÓN + drive
+      const concOk = hasSi(rec.doc_concertacion);
+      const driveOk = hasVal(rec.rad_docs_drive);
+      const notifOk = hasVal(rec.rad_notif);
+      if(concOk&&driveOk&&notifOk) return 'Completado';
+      if(concOk||driveOk||notifOk) return 'En proceso';
+      return '';
+    }
+    case 4: { // Firma
+      const firmaCo = hasVal(rec.firma_correo);
+      const profOk = hasVal(rec.firma_profesional);
+      if(firmaCo&&profOk) return 'Completado';
+      if(firmaCo||profOk) return 'En proceso';
+      return '';
+    }
+    case 5: { // Documentos implementación
+      const implOk = hasSi(rec.doc_implementacion);
+      const actaOk = hasVal(rec.doc_acta);
+      const infOk = hasVal(rec.doc_informe);
+      if(implOk&&actaOk&&infOk) return 'Completado';
+      if(implOk||actaOk||infOk||hasVal(rec.doc_fotos)) return 'En proceso';
+      return '';
+    }
+  }
+  return '';
+}
+
+function autoKobo(rec, stage){
+  const koboMap = ['diag_kobo','cont_kobo','val_kobo','rad_kobo','firma_kobo','doc_kobo'];
+  const manual = rec[koboMap[stage]];
+  if(hasVal(manual)) return manual;
+  // Stage 0: infer from rev_kobo
+  if(stage===0 && hasSi(rec.rev_kobo)) return 'Sí';
+  return '';
+}
+
+function autoFecha(rec, stage){
+  const fechaMap = ['diag_fecha','cont_fecha','val_fecha','rad_fecha','firma_fecha','doc_fecha'];
+  const f = rec[fechaMap[stage]];
+  if(hasVal(f)) return f;
+  // Fallback for stage 1: use fecha_reunion
+  if(stage===1 && hasVal(rec.fecha_reunion)) return rec.fecha_reunion;
+  return '';
+}
+
+// ══════════════════════════════════════════════════════
+// SEMÁFORO COLOR LOGIC
+// ══════════════════════════════════════════════════════
+function isSuspended(rec){
+  return rec.estado_accion && rec.estado_accion.toLowerCase().includes('suspend');
+}
+
+function getDaysSince(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr);
+  if(isNaN(d)) return null;
+  return Math.floor((new Date()-d)/86400000);
+}
+
+function daysBetween(d1,d2){
+  if(!d1||!d2) return null;
+  const a = new Date(d1), b = new Date(d2);
+  if(isNaN(a)||isNaN(b)) return null;
+  return Math.abs(Math.floor((b-a)/86400000));
+}
+
+function smColor(rec, stage){
+  if(isSuspended(rec)) return 'sus';
+  const est = autoEstado(rec, stage);
+  const kobo = autoKobo(rec, stage);
+  if(!est) return 'gy';
+  const e = est.toLowerCase();
+  if(e==='pendiente') return 'rd';
+  if(e==='en proceso'){
+    // Check if vencido (>8 days since stage started and previous completed)
+    const fecha = autoFecha(rec, stage);
+    if(fecha && stage>0){
+      const days = getDaysSince(fecha);
+      if(days!==null && days>DAYS_LIMIT) return 'rd'; // vencido
+    }
+    return 'yn';
+  }
+  if(e==='completado'){
+    const ko = kobo.toLowerCase();
+    if(ko==='sí'||ko==='si') return 'ok';
+    return 'or'; // completado sin kobo
+  }
+  return 'gy';
+}
+
+function smIcon(color){
+  return {gy:'○',rd:'●',yn:'●',ok:'✓',or:'●',sus:'⏸'}[color]||'○';
+}
+
+function smLabel(color,est,days){
+  const labels={gy:'Sin diligenciar',rd:'Pendiente'+(days&&days>DAYS_LIMIT?' ('+days+'d)':''),yn:'En proceso'+(days?' ('+days+'d)':''),ok:'Completado ✓ KOBO',or:'Completado sin KOBO',sus:'Suspendida'};
+  return labels[color]||'';
+}
+
+// ══════════════════════════════════════════════════════
+// PROGRESS CALCULATION
+// ══════════════════════════════════════════════════════
+function calcProg(rec){
+  let done = 0;
+  for(let s=0;s<6;s++){
+    const e = autoEstado(rec,s).toLowerCase();
+    if(e==='completado') done++;
+    else if(e==='en proceso') done+=0.5;
+  }
+  return Math.round((done/6)*100);
+}
+
+function currentStage(rec){
+  for(let s=5;s>=0;s--){
+    const e = autoEstado(rec,s);
+    if(e && e!=='') return s;
+  }
+  return -1;
+}
+
+// ══════════════════════════════════════════════════════
+// FILTERS & NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.target.classList.add('active');
+  if(id==='overview') renderCharts();
+  if(id==='prof') renderProf();
+  if(id==='alerts') renderAlerts();
+}
+
+function initSelects(){
+  const resp = [...new Set(ALL.map(r=>r.responsable).filter(Boolean))].sort();
+  const zonas = [...new Set(ALL.map(r=>r.zona).filter(Boolean))].sort();
+  const rs = document.getElementById('fResp');
+  const zs = document.getElementById('fZona');
+  resp.forEach(r=>rs.add(new Option(r,r)));
+  zonas.forEach(z=>zs.add(new Option(z,z)));
+}
+
+function setTipo(t, el){
+  fTipo = t;
+  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  doFilter();
+}
+
+function doFilter(){
+  fResp = document.getElementById('fResp')?.value||'';
+  fZona = document.getElementById('fZona')?.value||'';
+  fSearch = document.getElementById('fSearch')?.value.toLowerCase()||'';
+  fEtapa = document.getElementById('fEtapa')?.value||'';
+  FILTERED = ALL.filter(r=>{
+    if(fTipo && r.tipo!==fTipo) return false;
+    if(fResp && r.responsable!==fResp) return false;
+    if(fZona && r.zona!==fZona) return false;
+    if(fEtapa!==''){
+      const s = parseInt(fEtapa);
+      const est = autoEstado(r,s);
+      if(!est) return false;
+    }
+    if(fSearch){
+      const hay = (r.nombre+r.responsable+r.municipio+r.departamento+r.accion_id+r.id).toLowerCase();
+      if(!hay.includes(fSearch)) return false;
+    }
+    return true;
+  });
+  document.getElementById('filtBadge').textContent = FILTERED.length+' registros';
+  renderTable();
+  renderKPIs();
+}
+
+function clearFilters(){
+  fTipo='';fResp='';fZona='';fSearch='';fEtapa='';
+  document.getElementById('fResp').value='';
+  document.getElementById('fZona').value='';
+  document.getElementById('fSearch').value='';
+  document.getElementById('fEtapa').value='';
+  document.querySelectorAll('.pill').forEach((p,i)=>p.classList.toggle('active',i===0));
+  doFilter();
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER KPIs
+// ══════════════════════════════════════════════════════
+function renderKPIs(){
+  const d = FILTERED;
+  const tot = d.length;
+  const oj = d.filter(r=>r.tipo==='Ordenes Judiciales').length;
+  const ani = tot-oj;
+  const comp = d.filter(r=>calcProg(r)===100).length;
+  const enProc = d.filter(r=>{const p=calcProg(r);return p>0&&p<100}).length;
+  const sinIni = d.filter(r=>calcProg(r)===0).length;
+  const sus = d.filter(r=>isSuspended(r)).length;
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi c-ac"><div class="kpi-lbl">Total SRC</div><div class="kpi-val">${tot}</div><div class="kpi-sub">registros activos</div></div>
+    <div class="kpi c-oj"><div class="kpi-lbl">Órdenes Judiciales</div><div class="kpi-val">${oj}</div><div class="kpi-sub">${tot?Math.round(oj/tot*100):0}% del total</div></div>
+    <div class="kpi c-ni"><div class="kpi-lbl">Acc. No Implementadas</div><div class="kpi-val">${ani}</div><div class="kpi-sub">${tot?Math.round(ani/tot*100):0}% del total</div></div>
+    <div class="kpi c-ok"><div class="kpi-lbl">Completados</div><div class="kpi-val">${comp}</div><div class="kpi-sub">ruta 100% avanzada</div></div>
+    <div class="kpi c-yn"><div class="kpi-lbl">En Proceso</div><div class="kpi-val">${enProc}</div><div class="kpi-sub">con avance parcial</div></div>
+    <div class="kpi c-rd"><div class="kpi-lbl">Sin Iniciar</div><div class="kpi-val">${sinIni}</div><div class="kpi-sub">ninguna etapa</div></div>
+    <div class="kpi c-or"><div class="kpi-lbl">Suspendidas</div><div class="kpi-val">${sus}</div><div class="kpi-sub">tiempo pausado</div></div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER TABLE
+// ══════════════════════════════════════════════════════
+function renderTable(){
+  const tb = document.getElementById('tblBody');
+  const nd = document.getElementById('noData');
+  document.getElementById('tblCount').textContent = FILTERED.length+' registros';
+  if(!FILTERED.length){tb.innerHTML='';nd.style.display='block';return;}
+  nd.style.display='none';
+
+  tb.innerHTML = FILTERED.map(rec=>{
+    const tipoBadge = rec.tipo==='Ordenes Judiciales'
+      ? `<span class="badge b-oj">OJ</span>`
+      : `<span class="badge b-ni">ANI</span>`;
+    const sus = isSuspended(rec);
+    const susTag = sus ? `<span class="badge b-sus">⏸ SUS</span>` : '';
+
+    const stages = [0,1,2,3,4,5].map(s=>{
+      const color = smColor(rec,s);
+      const est = autoEstado(rec,s);
+      const kobo = autoKobo(rec,s);
+      const fecha = autoFecha(rec,s);
+      const days = getDaysSince(fecha);
+      const label = smLabel(color,est,days);
+      const koboC = !kobo?'na':hasSi(kobo)?'ok':'no';
+      const venc = color==='rd'&&days&&days>DAYS_LIMIT;
+      return `<td class="sm-wrap">
+        <div class="sm sm-${color}" title="${label}" onclick="openModal(${rec._i},event)">${smIcon(color)}</div>
+        ${hasVal(autoEstado(rec,s))?`<div class="kobo-d ko-${koboC}"></div>`:''}
+        ${venc?`<div class="venc">⏱${days}d</div>`:''}
+      </td>`;
+    }).join('');
+
+    const prog = calcProg(rec);
+    const pColor = prog===100?'var(--ok)':prog>0?'var(--yn)':'var(--gy)';
+    const estBadge = rec.estado_accion&&rec.estado_accion!=='Sin estado'
+      ? `<span style="background:rgba(0,200,212,.1);color:var(--ac);padding:2px 6px;border-radius:3px;font-size:10px;">${rec.estado_accion}</span>`
+      : `<span style="color:var(--gy);font-size:10px;">—</span>`;
+
+    return `<tr onclick="openModal(${rec._i},event)">
+      <td>${tipoBadge}${sus?`<br>${susTag}`:''}</td>
+      <td style="color:var(--tx2);font-size:11px;">${rec.id}</td>
+      <td style="color:var(--ac);font-weight:700;font-size:11px;white-space:nowrap;">${rec.accion_id}</td>
+      <td class="src-nm" title="${rec.nombre}">${rec.nombre}</td>
+      <td style="font-size:11px;white-space:nowrap;">${rec.zona}</td>
+      <td style="font-size:11px;white-space:nowrap;">${rec.macroregion}</td>
+      <td style="font-size:11px;color:var(--ac);white-space:nowrap;">${rec.responsable}</td>
+      <td>${estBadge}</td>
+      ${stages}
+      <td>
+        <div class="pbar-wrap">
+          <div class="pbar"><div class="pbar-fill" style="width:${prog}%;background:${pColor};"></div></div>
+          <span style="font-size:10px;color:${pColor};font-weight:700;min-width:28px;">${prog}%</span>
+        </div>
+      </td>
+      <td><button class="btn btn-sec btn-sm" onclick="openModal(${rec._i},event)">✏️</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════════════════════
+function mkChart(id,type,labels,data,colors,stacked){
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if(!ctx) return;
+  if(charts[id]) charts[id].destroy();
+  const isDark = {color:'rgba(221,232,245,.85)',grid:'rgba(42,64,96,.4)'};
+  charts[id] = new Chart(ctx,{
+    type,
+    data:{labels,datasets:[{data,backgroundColor:colors,borderColor:type==='bar'?'transparent':colors,borderWidth:type==='doughnut'?2:0,borderRadius:type==='bar'?5:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:type==='doughnut'?'65%':undefined,
+      plugins:{legend:{display:type==='doughnut',labels:{color:isDark.color,font:{size:10},boxWidth:10,padding:12}},tooltip:{callbacks:{label:c=>` ${c.label||''}: ${c.raw}`}}},
+      scales:type==='bar'?{x:{stacked:stacked||false,ticks:{color:isDark.color,font:{size:9}},grid:{color:isDark.grid}},y:{stacked:stacked||false,ticks:{color:isDark.color,font:{size:9}},grid:{color:isDark.grid},beginAtZero:true}}:undefined}
+  });
+}
+
+function renderCharts(){
+  const d = FILTERED.length ? FILTERED : ALL;
+  // Tipo
+  const byTipo = {};d.forEach(r=>{const k=r.tipo||'N/A';byTipo[k]=(byTipo[k]||0)+1;});
+  mkChart('cTipo','doughnut',Object.keys(byTipo),Object.values(byTipo),['#2980B9','#8E44AD','#1ABC9C']);
+
+  // Region
+  const byR = {};d.forEach(r=>{const k=(r.macroregion||'N/A').replace(/\s+/g,' ').trim();byR[k]=(byR[k]||0)+1;});
+  const rs = Object.entries(byR).sort((a,b)=>b[1]-a[1]);
+  mkChart('cRegion','bar',rs.map(e=>e[0].slice(0,14)),rs.map(e=>e[1]),['#00C8D4','#008FA0','#007A8F','#006678','#004E60','#003D4F']);
+
+  // Estado
+  const byE = {};d.forEach(r=>{const k=r.estado_accion||'Sin estado';byE[k]=(byE[k]||0)+1;});
+  const eCols = {'Aprobada':'#27AE60','En implementación':'#2980B9','En gestión':'#F39C12','Rehabilitación':'#9B59B6','Sin estado':'#4A6A85','Suspendida':'#7F8C8D'};
+  mkChart('cEstado','doughnut',Object.keys(byE),Object.values(byE),Object.keys(byE).map(k=>eCols[k]||'#4A6A85'));
+
+  // Etapas stacked
+  const stgLabels=['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs Impl.'];
+  const stgComp=[], stgProc=[], stgPend=[], stgGy=[];
+  for(let s=0;s<6;s++){
+    let comp=0,proc=0,pend=0,gy=0;
+    d.forEach(r=>{
+      const e = autoEstado(r,s).toLowerCase();
+      if(e==='completado') comp++;
+      else if(e==='en proceso') proc++;
+      else if(e==='pendiente') pend++;
+      else gy++;
+    });
+    stgComp.push(comp);stgProc.push(proc);stgPend.push(pend);stgGy.push(gy);
+  }
+  const ctx2 = document.getElementById('cEtapas')?.getContext('2d');
+  if(ctx2){
+    if(charts['cEtapas']) charts['cEtapas'].destroy();
+    charts['cEtapas'] = new Chart(ctx2,{
+      type:'bar',
+      data:{labels:stgLabels,datasets:[
+        {label:'Completado',data:stgComp,backgroundColor:'#27AE60',borderRadius:4},
+        {label:'En proceso',data:stgProc,backgroundColor:'#F39C12',borderRadius:4},
+        {label:'Pendiente',data:stgPend,backgroundColor:'#E74C3C',borderRadius:4},
+        {label:'Sin iniciar',data:stgGy,backgroundColor:'#4A6A85',borderRadius:4},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'rgba(221,232,245,.85)',font:{size:10},boxWidth:10}}},
+        scales:{x:{stacked:true,ticks:{color:'rgba(221,232,245,.8)',font:{size:10}},grid:{color:'rgba(42,64,96,.4)'}},y:{stacked:true,ticks:{color:'rgba(221,232,245,.8)',font:{size:10}},grid:{color:'rgba(42,64,96,.4)'},beginAtZero:true}}}
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PROFESSIONAL VIEW
+// ══════════════════════════════════════════════════════
+function renderProf(){
+  const profs = [...new Set(ALL.map(r=>r.responsable).filter(Boolean))].sort();
+  const stgColors = ['#2980B9','#8E44AD','#1ABC9C','#D35400','#E74C3C','#27AE60'];
+  document.getElementById('profGrid').innerHTML = profs.map(p=>{
+    const d = ALL.filter(r=>r.responsable===p);
+    // Unique subjects (unique IDs)
+    const sujetos = new Set(d.map(r=>r.id)).size;
+    // Total actions (rows)
+    const acciones = d.length;
+    const comp = d.filter(r=>calcProg(r)===100).length;
+    const proc = d.filter(r=>{const pp=calcProg(r);return pp>0&&pp<100}).length;
+    const sus = d.filter(r=>isSuspended(r)).length;
+    const alerts = d.filter(r=>!isSuspended(r)&&autoEstado(r,0)==='Pendiente').length;
+    const oj = d.filter(r=>r.tipo==='Ordenes Judiciales').length;
+    const ani = d.filter(r=>r.tipo==='Acciones no implementadas').length;
+    const segs = [0,1,2,3,4,5].map(s=>{
+      const cnt = d.filter(r=>autoEstado(r,s).toLowerCase()==='completado').length;
+      const pct = d.length?cnt/d.length*100:0;
+      return `<div class="pp-seg" style="background:${stgColors[s]};opacity:${.3+pct/100*.7};flex:1;border-radius:3px;" title="${['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs'][s]}: ${cnt}/${d.length}"></div>`;
+    }).join('');
+    return `<div class="prof-card" onclick="selectProf('${p}',this)">
+      <div class="prof-name">${p}</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+        <div style="background:var(--bg);border-radius:7px;padding:10px;border:1px solid rgba(0,200,212,.2);">
+          <div style="font-size:22px;font-weight:800;color:var(--ac);line-height:1;">${sujetos}</div>
+          <div style="font-size:9px;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">Sujetos (SRC)</div>
+        </div>
+        <div style="background:var(--bg);border-radius:7px;padding:10px;border:1px solid rgba(0,200,212,.15);">
+          <div style="font-size:22px;font-weight:800;color:#7FB3D3;line-height:1;">${acciones}</div>
+          <div style="font-size:9px;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">Acciones</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px;">
+        <div class="pms"><div class="pms-val" style="color:var(--ok);font-size:16px;">${comp}</div><div class="pms-lbl">Complet.</div></div>
+        <div class="pms"><div class="pms-val" style="color:var(--yn);font-size:16px;">${proc}</div><div class="pms-lbl">En proc.</div></div>
+        <div class="pms"><div class="pms-val" style="color:#7F8C8D;font-size:16px;">${sus}</div><div class="pms-lbl">Suspend.</div></div>
+        <div class="pms"><div class="pms-val" style="color:var(--rd);font-size:16px;">${alerts}</div><div class="pms-lbl">⚠ Alertas</div></div>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-bottom:8px;font-size:10px;">
+        <span style="background:rgba(41,128,185,.15);color:var(--oj);padding:2px 8px;border-radius:4px;border:1px solid rgba(41,128,185,.3);">🔵 OJ: ${oj}</span>
+        <span style="background:rgba(142,68,173,.15);color:var(--ni);padding:2px 8px;border-radius:4px;border:1px solid rgba(142,68,173,.3);">🟣 ANI: ${ani}</span>
+      </div>
+
+      <div style="font-size:9px;color:var(--tx2);margin-bottom:4px;">Avance por etapa:</div>
+      <div class="prof-pipeline" style="gap:3px;">${segs}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        ${stgColors.map((c,i)=>`<div style="width:14px;height:4px;background:${c};border-radius:2px;opacity:.7;" title="${['①Diag','②Cont','③Val','④Rad','⑤Firma','⑥Docs'][i]}"></div>`).join('')}
+      </div>
+      <div style="margin-top:8px;font-size:10px;text-align:center;color:var(--tx2);">Clic para ver detalle ↓</div>
+    </div>`;
+  }).join('');
+}
+
+function selectProf(p, el){
+  document.querySelectorAll('.prof-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const det = document.getElementById('profDetail');
+  det.style.display='block';
+  const d = ALL.filter(r=>r.responsable===p);
+  const sujetos = new Set(d.map(r=>r.id)).size;
+
+  // Update detail header
+  const detTitle = document.getElementById('profDetailName');
+  detTitle.innerHTML = `${p} &nbsp;<span style="font-size:12px;color:var(--tx2);font-weight:400;">${sujetos} sujetos · ${d.length} acciones</span>`;
+
+  const stgLabels=['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs Impl.'];
+  const ctx = document.getElementById('cProfDetail')?.getContext('2d');
+  if(ctx){
+    if(activeProfChart) activeProfChart.destroy();
+    activeProfChart = new Chart(ctx,{
+      type:'bar',
+      data:{
+        labels:stgLabels,
+        datasets:[
+          {label:'Completado', data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='completado').length), backgroundColor:'#27AE60',borderRadius:4},
+          {label:'En proceso', data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='en proceso').length), backgroundColor:'#F39C12',borderRadius:4},
+          {label:'Pendiente',  data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='pendiente').length),  backgroundColor:'#E74C3C',borderRadius:4},
+          {label:'Sin iniciar',data:stgLabels.map((_,s)=>autoEstado(r,s)===''?1:0).map((_,s)=>d.filter(r=>autoEstado(r,s)==='').length), backgroundColor:'#4A6A85',borderRadius:4},
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'rgba(221,232,245,.85)',font:{size:10},boxWidth:10}}},
+        scales:{x:{stacked:true,ticks:{color:'rgba(221,232,245,.8)',font:{size:9}},grid:{color:'rgba(42,64,96,.4)'}},
+                y:{stacked:true,ticks:{color:'rgba(221,232,245,.8)',font:{size:9}},grid:{color:'rgba(42,64,96,.4)'},beginAtZero:true}}}
+    });
+  }
+
+  // Render SRC table for this professional
+  const stgColors=['#5DADE2','#BB8FCE','#76D7C4','#E59866','#F1948A','#82E0AA'];
+  const tableHtml = `
+    <div style="overflow-x:auto;margin-top:16px;border:1px solid var(--bd);border-radius:8px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#0D1E30;">
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">ID</th>
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">SRC / Nombre</th>
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">Cód. Acción</th>
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">Tipo</th>
+            ${stgLabels.map((l,i)=>`<th style="padding:8px 6px;text-align:center;color:${stgColors[i]};font-size:10px;white-space:nowrap;">${['①','②','③','④','⑤','⑥'][i]} ${l}</th>`).join('')}
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;">Avance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${d.map(rec=>{
+            const tipoBadge = rec.tipo==='Ordenes Judiciales'
+              ? `<span style="background:rgba(41,128,185,.15);color:#2980B9;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;border:1px solid rgba(41,128,185,.3);">OJ</span>`
+              : `<span style="background:rgba(142,68,173,.15);color:#8E44AD;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;border:1px solid rgba(142,68,173,.3);">ANI</span>`;
+            const stages = stgLabels.map((_,s)=>{
+              const color = smColor(rec,s);
+              const label = smLabel(color, autoEstado(rec,s), null);
+              return `<td style="text-align:center;padding:6px;">
+                <div class="sm sm-${color}" style="width:22px;height:22px;font-size:10px;margin:0 auto;" title="${label}" onclick="openModal(${rec._i},event)">${smIcon(color)}</div>
+              </td>`;
+            }).join('');
+            const prog = calcProg(rec);
+            const pColor = prog===100?'var(--ok)':prog>0?'var(--yn)':'var(--gy)';
+            return `<tr style="border-bottom:1px solid rgba(42,64,96,.35);cursor:pointer;transition:background .12s;" onmouseover="this.style.background='rgba(0,200,212,.04)'" onmouseout="this.style.background=''" onclick="openModal(${rec._i},event)">
+              <td style="padding:7px 10px;color:var(--tx2);font-size:11px;">${rec.id}</td>
+              <td style="padding:7px 10px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${rec.nombre}">${rec.nombre}</td>
+              <td style="padding:7px 10px;color:var(--ac);font-weight:700;font-size:11px;">${rec.accion_id}</td>
+              <td style="padding:7px 10px;">${tipoBadge}</td>
+              ${stages}
+              <td style="padding:7px 10px;min-width:80px;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="flex:1;height:5px;background:var(--bd);border-radius:3px;overflow:hidden;">
+                    <div style="width:${prog}%;height:100%;background:${pColor};border-radius:3px;"></div>
+                  </div>
+                  <span style="font-size:10px;color:${pColor};font-weight:700;">${prog}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  document.getElementById('profDetailTable').innerHTML = tableHtml;
+
+  // Scroll detail into view
+  det.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ══════════════════════════════════════════════════════
+// ALERTS
+// ══════════════════════════════════════════════════════
+let alertProfFilter = '';
+
+function initAlertProfPills(){
+  const profs = [...new Set(ALL.map(r=>r.responsable).filter(Boolean))].sort();
+  const container = document.getElementById('alertProfPills');
+  if(!container) return;
+  profs.forEach(p=>{
+    const span = document.createElement('span');
+    span.className = 'pill';
+    span.textContent = p;
+    span.onclick = function(){ setAlertProf(p, this); };
+    container.appendChild(span);
+  });
+}
+
+function setAlertProf(prof, el){
+  alertProfFilter = prof;
+  document.querySelectorAll('#alertProfPills .pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  const lbl = document.getElementById('alertProfLabel');
+  if(prof){ lbl.textContent = '→ '+prof; lbl.style.display='inline'; }
+  else { lbl.style.display='none'; }
+  renderAlerts();
+}
+
+function clearAlertFilters(){
+  alertProfFilter = '';
+  document.querySelectorAll('#alertProfPills .pill').forEach((p,i)=>p.classList.toggle('active',i===0));
+  document.getElementById('alertTipoFilt').value = '';
+  document.getElementById('alertEtapaFilt').value = '';
+  document.getElementById('alertProfLabel').style.display='none';
+  renderAlerts();
+}
+
+function renderAlerts(){
+  const tipoFilt = document.getElementById('alertTipoFilt')?.value || '';
+  const etapaFilt = document.getElementById('alertEtapaFilt')?.value;
+  const etapaNum = etapaFilt !== '' && etapaFilt !== undefined ? parseInt(etapaFilt) : null;
+
+  const stgNames=['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs Impl.'];
+  const alerts = [];
+  ALL.forEach(rec=>{
+    if(isSuspended(rec)) return;
+    if(alertProfFilter && rec.responsable !== alertProfFilter) return;
+
+    // Stage 0: always alert if no data
+    const s0Est = autoEstado(rec,0);
+    if(s0Est==='Pendiente'){
+      if(tipoFilt===''||tipoFilt==='diag'){
+        if(etapaNum===null||etapaNum===0){
+          alerts.push({rec,msg:'Sin diagnóstico iniciado',stage:0,days:null,tipo:'diag'});
+        }
+      }
+    }
+    // Stages 1-5: check time
+    for(let s=1;s<6;s++){
+      if(etapaNum!==null && etapaNum!==s) continue;
+      const est = autoEstado(rec,s);
+      if(!est) continue;
+      const fecha = autoFecha(rec,s);
+      if(!fecha) continue;
+      const days = getDaysSince(fecha);
+      if(days!==null && days>DAYS_LIMIT && est.toLowerCase()!=='completado'){
+        if(tipoFilt===''||tipoFilt==='venc'){
+          alerts.push({rec,msg:`Etapa vencida: ${stgNames[s]}`,stage:s,days,tipo:'venc'});
+        }
+      }
+    }
+  });
+
+  // Sort: vencidos primero (más días), luego sin diagnóstico
+  alerts.sort((a,b)=>{
+    if(a.tipo==='venc'&&b.tipo!=='venc') return -1;
+    if(b.tipo==='venc'&&a.tipo!=='venc') return 1;
+    return (b.days||0)-(a.days||0);
+  });
+
+  document.getElementById('alertCount').textContent = alerts.length+' alerta'+(alerts.length!==1?'s':'');
+  const ab = document.getElementById('alertBody');
+  const na = document.getElementById('noAlerts');
+  if(!alerts.length){ab.innerHTML='';na.style.display='block';return;}
+  na.style.display='none';
+
+  ab.innerHTML = alerts.map(a=>`
+    <tr class="alert-row" onclick="openModal(${a.rec._i},event)" style="cursor:pointer;">
+      <td class="src-nm" title="${a.rec.nombre}" style="max-width:200px;">${a.rec.nombre}</td>
+      <td style="color:var(--ac);font-weight:700;font-size:11px;">${a.rec.accion_id}</td>
+      <td style="font-size:12px;white-space:nowrap;">
+        <span style="background:rgba(0,200,212,.1);color:var(--ac);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;">${a.rec.responsable}</span>
+      </td>
+      <td><span class="alert-tag">⚠ ${a.msg}</span></td>
+      <td style="font-size:11px;color:var(--tx2);">${stgNames[a.stage]}</td>
+      <td style="font-size:12px;font-weight:800;color:${a.days&&a.days>DAYS_LIMIT?'var(--rd)':'var(--tx2)'};">${a.days!=null?a.days+'d':'—'}</td>
+      <td><button class="btn btn-sec btn-sm" onclick="openModal(${a.rec._i},event)">✏️ Actualizar</button></td>
+    </tr>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════════════
+const STAGES_CFG = [
+  {key:'diag',label:'① Diagnóstico',cls:'stg-0',fields:[
+    {k:'diag_val_docs',l:'Validación docs inicial',t:'text'},
+    {k:'diag_cargue',l:'Cargue de información',t:'text'},
+    {k:'diag_docs_pend',l:'Documentos pendientes',t:'text'},
+    {k:'diag_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
+    {k:'diag_fecha',l:'Fecha',t:'date'},
+    {k:'diag_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+  ]},
+  {key:'cont',label:'② Contactabilidad',cls:'stg-1',fields:[
+    {k:'cont_socializacion',l:'Socialización',t:'text'},
+    {k:'cont_envio',l:'Envío de formatos',t:'text'},
+    {k:'cont_recepcion',l:'Recepción de formatos',t:'text'},
+    {k:'cont_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
+    {k:'cont_fecha',l:'Fecha',t:'date'},
+    {k:'cont_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+  ]},
+  {key:'val',label:'③ Validación Formatos + Idoneidad',cls:'stg-2',fields:[
+    {k:'val_revision',l:'Revisión documental',t:'text'},
+    {k:'val_cotizaciones',l:'Cotizaciones',t:'text'},
+    {k:'val_novedad',l:'Novedad',t:'text'},
+    {k:'val_responsable_nov',l:'Responsable novedad',t:'text'},
+    {k:'val_novedad_fin',l:'Novedad finalizada',t:'text'},
+    {k:'val_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
+    {k:'val_fecha',l:'Fecha',t:'date'},
+    {k:'val_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+  ]},
+  {key:'rad',label:'④ Radicación de Documentos',cls:'stg-3',fields:[
+    {k:'rad_docs_drive',l:'Documentos en Drive',t:'text'},
+    {k:'rad_notif',l:'Notificación coordinación',t:'text'},
+    {k:'rad_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
+    {k:'rad_fecha',l:'Fecha',t:'date'},
+    {k:'rad_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+  ]},
+  {key:'firma',label:'⑤ Firma de Acuerdos',cls:'stg-4',fields:[
+    {k:'firma_correo',l:'Correo acuerdos corporativos',t:'text'},
+    {k:'firma_profesional',l:'Profesional acompaña',t:'text'},
+    {k:'firma_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
+    {k:'firma_fecha',l:'Fecha',t:'date'},
+    {k:'firma_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+  ]},
+  {key:'doc',label:'⑥ Documentos de Implementación',cls:'stg-5',fields:[
+    {k:'doc_acta',l:'Acta de entrega',t:'text'},
+    {k:'doc_informe',l:'Informe operativo',t:'text'},
+    {k:'doc_fotos',l:'Registros fotográficos',t:'text'},
+    {k:'doc_bases',l:'Bases de participantes',t:'text'},
+    {k:'doc_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
+    {k:'doc_fecha',l:'Fecha',t:'date'},
+    {k:'doc_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+  ]},
+];
+
+function openModal(idx, ev){
+  if(ev) ev.stopPropagation();
+  const rec = ALL[idx];
+  editIdx = idx;
+  document.getElementById('mTitle').textContent = rec.nombre;
+  document.getElementById('mSub').textContent = `${rec.tipo} · ${rec.responsable} · ${rec.zona} · Acción: ${rec.accion_id}`;
+
+  // Info grid
+  let html = `<div class="info-g">
+    <div><span class="ig-l">ID:</span> <span class="ig-v">${rec.id}</span></div>
+    <div><span class="ig-l">Código Acción:</span> <span class="ig-v" style="color:var(--ac);font-weight:700;">${rec.accion_id}</span></div>
+    <div><span class="ig-l">Medida:</span> <span class="ig-v">${rec.medida||'—'}</span></div>
+    <div><span class="ig-l">Zona:</span> <span class="ig-v">${rec.zona} · ${rec.municipio}</span></div>
+    <div><span class="ig-l">Reunión:</span> <span class="ig-v">${rec.reunion_realizada||'—'} ${rec.fecha_reunion?'('+rec.fecha_reunion+')':''}</span></div>
+    <div><span class="ig-l">ACTA Reunión:</span> <span class="ig-v">${rec.doc_acta_reunion||'—'}</span></div>
+    <div><span class="ig-l">ACTA Concertación:</span> <span class="ig-v">${rec.doc_concertacion||'—'}</span></div>
+    <div><span class="ig-l">ACTA Implementación:</span> <span class="ig-v">${rec.doc_implementacion||'—'}</span></div>
+  </div>`;
+
+  // Suspension block
+  const sus = isSuspended(rec);
+  html += `<div class="stg" style="border-color:${sus?'#E74C3C':'var(--bd)'};">
+    <div class="stg-h" style="background:${sus?'rgba(231,76,60,.15)':'rgba(127,140,141,.1)'};color:${sus?'#E74C3C':'#7F8C8D'};" onclick="toggleStg(this)">
+      ⏸ Suspensión / Reactivación &nbsp;<span style="font-size:10px;">${sus?'⚠️ ACTUALMENTE SUSPENDIDA':''}</span> <span>▼</span>
+    </div>
+    <div class="stg-b" style="${sus?'display:grid;':''}" >
+      <div class="fg">
+        <label class="fl">Estado Acción</label>
+        <select class="fc" id="field_estado_accion">
+          ${['Sin estado','Aprobada','En gestión','En implementación','Rehabilitación','Suspendida'].map(o=>`<option value="${o}"${rec.estado_accion===o?' selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl">Fecha de Suspensión</label>
+        <input class="fc" type="date" id="field_suspension_fecha" value="${rec.suspension_fecha||''}">
+      </div>
+      <div class="fg">
+        <label class="fl">Fecha de Reactivación</label>
+        <input class="fc" type="date" id="field_reactivacion_fecha" value="${rec.reactivacion_fecha||''}">
+      </div>
+      <div class="fg full" style="color:var(--tx2);font-size:11px;padding-top:4px;">
+        ℹ️ Si está Suspendida, el tiempo no corre. Al reactivar se cuenta desde la fecha de reactivación.
+      </div>
+    </div>
+  </div>`;
+
+  // Alerts
+  const stgAlerts = [];
+  for(let s=0;s<6;s++){
+    const fecha = autoFecha(rec,s);
+    const est = autoEstado(rec,s);
+    if(fecha && est && est.toLowerCase()!=='completado'){
+      const days = getDaysSince(fecha);
+      if(days!==null && days>DAYS_LIMIT && s>0) stgAlerts.push(`Etapa ${s+1}: ${days} días`);
+    }
+  }
+  if(stgAlerts.length) html += `<div class="abox">⚠️ <strong>Alertas de tiempo:</strong> ${stgAlerts.join(' · ')}</div>`;
+
+  // Stage forms
+  html += STAGES_CFG.map(stg=>`
+    <div class="stg ${stg.cls}">
+      <div class="stg-h" onclick="toggleStg(this)">
+        ${stg.label}
+        <span style="font-size:10px;opacity:.8;">${smLabel(smColor(rec,STAGES_CFG.indexOf(stg)),autoEstado(rec,STAGES_CFG.indexOf(stg)),null)}</span>
+        <span>▼</span>
+      </div>
+      <div class="stg-b">
+        ${stg.fields.map(f=>`
+          <div class="fg${f.t==='text'&&(f.k.includes('docs')||f.k.includes('novedad'))?'':''}" >
+            <label class="fl">${f.l}</label>
+            ${f.t==='sel'
+              ?`<select class="fc" id="field_${f.k}">${f.opts.map(o=>`<option value="${o}"${rec[f.k]===o?' selected':''}>${o||'— Sin seleccionar —'}</option>`).join('')}</select>`
+              :`<input class="fc" type="${f.t}" id="field_${f.k}" value="${rec[f.k]||''}">`
+            }
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('mBody').innerHTML = html;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function toggleStg(el){
+  const body = el.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.style.display = isOpen ? 'none' : 'grid';
+  body.classList.toggle('open', !isOpen);
+}
+
+function closeModal(){document.getElementById('overlay').classList.remove('open');editIdx=null;}
+function closeIf(e){if(e.target===document.getElementById('overlay')) closeModal();}
+
+function saveRec(){
+  if(editIdx===null) return;
+  const rec = ALL[editIdx];
+  const allFields = ['estado_accion','suspension_fecha','reactivacion_fecha',
+    'diag_val_docs','diag_cargue','diag_docs_pend','diag_estado','diag_fecha','diag_kobo',
+    'cont_socializacion','cont_envio','cont_recepcion','cont_estado','cont_fecha','cont_kobo',
+    'val_revision','val_cotizaciones','val_novedad','val_responsable_nov','val_novedad_fin','val_estado','val_fecha','val_kobo',
+    'rad_docs_drive','rad_notif','rad_estado','rad_fecha','rad_kobo',
+    'firma_correo','firma_profesional','firma_estado','firma_fecha','firma_kobo',
+    'doc_acta','doc_informe','doc_fotos','doc_bases','doc_estado','doc_fecha','doc_kobo',
+  ];
+  allFields.forEach(k=>{
+    const el = document.getElementById('field_'+k);
+    if(el) rec[k] = el.value;
+  });
+  const ed = loadEdits();
+  ed[rec._k] = {};
+  allFields.forEach(k=>ed[rec._k][k]=rec[k]);
+  saveEdits(ed);
+  ALL[editIdx] = rec;
+  doFilter();
+  renderKPIs();
+  closeModal();
+  showToast('✅ Guardado correctamente','t-ok');
+  // Refresh alerts if on that page
+  if(document.getElementById('page-alerts').classList.contains('active')) renderAlerts();
+}
+
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(ALL,null,2)],{type:'application/json'});
+  const a = document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cisp_export.json';a.click();
+  showToast('📦 Datos exportados','t-ok');
+}
+
+function showToast(msg,cls='t-ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show '+cls;
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  loadFromSheets();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});
+</script>
+</body>
+</html>
