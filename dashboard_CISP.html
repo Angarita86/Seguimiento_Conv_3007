@@ -456,6 +456,11 @@ function csvToRecords(csvText) {
     'Registros fotografico':'doc_fotos',
     'Bases de los participantes a los cursos':'doc_bases',
     'Estado_DocI':'doc_estado','Fecha_DocI':'doc_fecha','KOBO_DocI':'doc_kobo',
+  'Obsercaicones Diagnostico':'diag_obs','Observaciones Diagnóstico':'diag_obs',
+  'Observaciones Contactabilidad':'cont_obs','observaciones valid':'val_obs',
+  'Observaciones Validación':'val_obs','Observaciones Radic':'rad_obs',
+  'Observaciones Radicación':'rad_obs','Observaciones Firma':'firma_obs',
+  'Observaciones DocImpl':'doc_obs','Observaciones Docs Implementación':'doc_obs',
   };
 
   const DEFAULT_REC = {
@@ -479,6 +484,7 @@ function csvToRecords(csvText) {
     doc_acta:'',doc_informe:'',doc_fotos:'',doc_bases:'',
     doc_estado:'',doc_fecha:'',doc_kobo:'',
     suspension_fecha:'',reactivacion_fecha:'',
+    diag_obs:'',cont_obs:'',val_obs:'',rad_obs:'',firma_obs:'',doc_obs:'',
   };
 
   const records = [];
@@ -1285,6 +1291,7 @@ const STAGES_CFG = [
     {k:'diag_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
     {k:'diag_fecha',l:'Fecha',t:'date'},
     {k:'diag_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+    {k:'diag_obs',l:'Observaciones Diagnóstico',t:'textarea'},
   ]},
   {key:'cont',label:'② Contactabilidad',cls:'stg-1',fields:[
     {k:'cont_socializacion',l:'Socialización',t:'text'},
@@ -1293,6 +1300,7 @@ const STAGES_CFG = [
     {k:'cont_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
     {k:'cont_fecha',l:'Fecha',t:'date'},
     {k:'cont_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+    {k:'cont_obs',l:'Observaciones Contactabilidad',t:'textarea'},
   ]},
   {key:'val',label:'③ Validación Formatos + Idoneidad',cls:'stg-2',fields:[
     {k:'val_revision',l:'Revisión documental',t:'text'},
@@ -1303,6 +1311,7 @@ const STAGES_CFG = [
     {k:'val_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
     {k:'val_fecha',l:'Fecha',t:'date'},
     {k:'val_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+    {k:'val_obs',l:'Observaciones Validación',t:'textarea'},
   ]},
   {key:'rad',label:'④ Radicación de Documentos',cls:'stg-3',fields:[
     {k:'rad_docs_drive',l:'Documentos en Drive',t:'text'},
@@ -1310,6 +1319,7 @@ const STAGES_CFG = [
     {k:'rad_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
     {k:'rad_fecha',l:'Fecha',t:'date'},
     {k:'rad_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+    {k:'rad_obs',l:'Observaciones Radicación',t:'textarea'},
   ]},
   {key:'firma',label:'⑤ Firma de Acuerdos',cls:'stg-4',fields:[
     {k:'firma_correo',l:'Correo acuerdos corporativos',t:'text'},
@@ -1317,6 +1327,7 @@ const STAGES_CFG = [
     {k:'firma_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
     {k:'firma_fecha',l:'Fecha',t:'date'},
     {k:'firma_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+    {k:'firma_obs',l:'Observaciones Firma',t:'textarea'},
   ]},
   {key:'doc',label:'⑥ Documentos de Implementación',cls:'stg-5',fields:[
     {k:'doc_acta',l:'Acta de entrega',t:'text'},
@@ -1326,6 +1337,7 @@ const STAGES_CFG = [
     {k:'doc_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
     {k:'doc_fecha',l:'Fecha',t:'date'},
     {k:'doc_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
+    {k:'doc_obs',l:'Observaciones Docs Implementación',t:'textarea'},
   ]},
 ];
 
@@ -1401,6 +1413,8 @@ function openModal(idx, ev){
             <label class="fl">${f.l}</label>
             ${f.t==='sel'
               ?`<select class="fc" id="field_${f.k}">${f.opts.map(o=>`<option value="${o}"${rec[f.k]===o?' selected':''}>${o||'— Sin seleccionar —'}</option>`).join('')}</select>`
+              :f.t==='textarea'
+              ?`<textarea class="fc" id="field_${f.k}" rows="2" style="resize:vertical;font-family:inherit;">${rec[f.k]||''}</textarea>`
               :`<input class="fc" type="${f.t}" id="field_${f.k}" value="${rec[f.k]||''}">`
             }
           </div>
@@ -1426,13 +1440,25 @@ function closeIf(e){if(e.target===document.getElementById('overlay')) closeModal
 // Campos que se escriben de vuelta al Google Sheet (columnas existentes)
 const SHEET_FIELDS = {
   'estado_accion': 18,
+  // Stage 1 - Diagnóstico
   'diag_val_docs': 57, 'diag_cargue': 58, 'diag_docs_pend': 59,
-  'cont_socializacion': 60, 'cont_envio': 61, 'cont_recepcion': 62,
-  'val_revision': 63, 'val_cotizaciones': 64, 'val_novedad': 65,
-  'val_responsable_nov': 66, 'val_novedad_fin': 67,
-  'rad_docs_drive': 68, 'rad_notif': 69,
-  'firma_correo': 70, 'firma_profesional': 71,
-  'doc_acta': 72, 'doc_informe': 73, 'doc_fotos': 74, 'doc_bases': 75,
+  'diag_estado': 60, 'diag_fecha': 61, 'diag_kobo': 62, 'diag_obs': 63,
+  // Stage 2 - Contactabilidad
+  'cont_socializacion': 64, 'cont_envio': 65, 'cont_recepcion': 66,
+  'cont_estado': 67, 'cont_fecha': 68, 'cont_kobo': 69, 'cont_obs': 70,
+  // Stage 3 - Validación
+  'val_revision': 71, 'val_cotizaciones': 72, 'val_novedad': 73,
+  'val_responsable_nov': 74, 'val_novedad_fin': 75,
+  'val_estado': 76, 'val_fecha': 77, 'val_kobo': 78, 'val_obs': 79,
+  // Stage 4 - Radicación
+  'rad_docs_drive': 80, 'rad_notif': 81,
+  'rad_estado': 82, 'rad_fecha': 83, 'rad_kobo': 84, 'rad_obs': 85,
+  // Stage 5 - Firma
+  'firma_correo': 86, 'firma_profesional': 87,
+  'firma_estado': 88, 'firma_fecha': 89, 'firma_kobo': 90, 'firma_obs': 91,
+  // Stage 6 - Docs implementación
+  'doc_acta': 92, 'doc_informe': 93, 'doc_fotos': 94, 'doc_bases': 95,
+  'doc_estado': 96, 'doc_fecha': 97, 'doc_kobo': 98, 'doc_obs': 99,
 };
 
 async function writeToSheets(accion_id, campos) {
@@ -1452,12 +1478,12 @@ async function saveRec(){
   if(editIdx===null) return;
   const rec = ALL[editIdx];
   const allFields = ['estado_accion','suspension_fecha','reactivacion_fecha',
-    'diag_val_docs','diag_cargue','diag_docs_pend','diag_estado','diag_fecha','diag_kobo',
-    'cont_socializacion','cont_envio','cont_recepcion','cont_estado','cont_fecha','cont_kobo',
-    'val_revision','val_cotizaciones','val_novedad','val_responsable_nov','val_novedad_fin','val_estado','val_fecha','val_kobo',
-    'rad_docs_drive','rad_notif','rad_estado','rad_fecha','rad_kobo',
-    'firma_correo','firma_profesional','firma_estado','firma_fecha','firma_kobo',
-    'doc_acta','doc_informe','doc_fotos','doc_bases','doc_estado','doc_fecha','doc_kobo',
+    'diag_val_docs','diag_cargue','diag_docs_pend','diag_estado','diag_fecha','diag_kobo','diag_obs',
+    'cont_socializacion','cont_envio','cont_recepcion','cont_estado','cont_fecha','cont_kobo','cont_obs',
+    'val_revision','val_cotizaciones','val_novedad','val_responsable_nov','val_novedad_fin','val_estado','val_fecha','val_kobo','val_obs',
+    'rad_docs_drive','rad_notif','rad_estado','rad_fecha','rad_kobo','rad_obs',
+    'firma_correo','firma_profesional','firma_estado','firma_fecha','firma_kobo','firma_obs',
+    'doc_acta','doc_informe','doc_fotos','doc_bases','doc_estado','doc_fecha','doc_kobo','doc_obs',
   ];
 
   // Leer valores del formulario
