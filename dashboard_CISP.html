@@ -376,7 +376,7 @@ tbody td{padding:8px 10px;vertical-align:middle}
 
 <script>
 const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSrL3i329_PVWCZwZYk6I7Af2gnyPPSfph2ydEZxkNHq5abL_BKK6OQZJC542D2DA/pub?gid=1413744520&single=true&output=csv';
-const SCRIPT_URL = 'https://script.google.com/a/macros/cispcolombia.org/s/AKfycbw_YvVsO-XRLymILdw_f0uM_Lh18Zvocrow02TS_X88F079D9VsE1DMM-BW23DSLlIjTg/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAf57ajNzskWebDJplFGM-1IZ5kr6UR6QAztVuV_1kUOE0JsBdEBw6T57VC0rwwy5c_Q/exec';
 let RAW = [];
 
 // ══════════════════════════════════════════════════════
@@ -1437,13 +1437,11 @@ const SHEET_FIELDS = {
 
 async function writeToSheets(accion_id, campos) {
   try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify({accion_id, campos})
-    });
-    return true;
+    const payload = encodeURIComponent(JSON.stringify({accion_id, campos}));
+    const url = SCRIPT_URL + '?data=' + payload;
+    const res = await fetch(url, {mode: 'cors'});
+    const json = await res.json();
+    return json.ok === true;
   } catch(e) {
     console.warn('Write to Sheets failed:', e);
     return false;
