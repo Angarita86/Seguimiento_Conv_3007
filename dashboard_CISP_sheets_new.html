@@ -148,6 +148,10 @@ tbody td{padding:8px 10px;vertical-align:middle}
 .toast.show{display:block;animation:su .3s ease}
 @keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .t-ok{background:var(--ok);color:#fff}.t-er{background:var(--rd);color:#fff}
+/* EXTERNAL LINK BUTTONS */
+.ext-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid;text-decoration:none;transition:all .2s;white-space:nowrap;cursor:pointer;}
+.ext-btn:hover{filter:brightness(1.2);transform:translateY(-1px);}
+.ext-btn:hover + .drive-tip, div:hover > .drive-tip{opacity:1!important;}
 </style>
 </head>
 <body>
@@ -177,9 +181,22 @@ tbody td{padding:8px 10px;vertical-align:middle}
     <div class="nav-tab" onclick="showPage('prof')">👤 Por Profesional</div>
     <div class="nav-tab" onclick="showPage('alerts')">⚠️ Alertas</div>
   </nav>
+  <div class="topbar-divider"></div>
+  <!-- ENLACES EXTERNOS -->
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <a href="https://nascisp02.myqnapcloud.com:13443/cgi-bin/" target="_blank" class="ext-btn" style="background:#1A3A5C;border-color:#2980B9;color:#5DADE2;">🗄 NAS</a>
+    <a href="https://eu.kobotoolbox.org/accounts/login/" target="_blank" class="ext-btn" style="background:#1A3A2A;border-color:#27AE60;color:#82E0AA;">📋 KOBO</a>
+    <a href="https://documentos.app.cispcolombia.org/login" target="_blank" class="ext-btn" style="background:#2A1A3A;border-color:#8E44AD;color:#BB8FCE;">📞 Contactabilidad</a>
+    <div style="position:relative;">
+      <a href="https://drive.google.com/drive/my-drive" target="_blank" class="ext-btn" style="background:#3A2A1A;border-color:#D35400;color:#E59866;" title="⚠️ Abrir desde la cuenta reparacion.colectiva@cispcolombia.org">🗂 DRIVE ⚠️</a>
+      <div style="position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;color:#E59866;background:#0B1622;padding:2px 5px;border-radius:3px;pointer-events:none;opacity:0;transition:opacity .2s;" class="drive-tip">Usar cuenta reparacion.colectiva</div>
+    </div>
+  </div>
   <div class="topbar-right">
     <span class="topbar-badge" id="filtBadge">156 registros</span>
-    <span id="lastLoadBadge" style="font-size:11px;color:var(--tx2);cursor:pointer;" onclick="loadFromSheets()" title="Haz clic para actualizar">🔄 --:--</span><button class="btn btn-sec btn-sm" onclick="loadFromSheets()" title="Actualizar desde Google Sheets">⟳ Actualizar</button><button class="btn btn-sec btn-sm" onclick="exportJSON()">⬇ Exportar</button>
+    <span id="lastLoadBadge" style="font-size:11px;color:var(--tx2);cursor:pointer;" onclick="loadFromSheets()" title="Haz clic para actualizar">🔄 --:--</span>
+    <button class="btn btn-sec btn-sm" onclick="loadFromSheets()" title="Actualizar desde Google Sheets">⟳ Actualizar</button>
+    <button class="btn btn-sec btn-sm" onclick="exportJSON()">⬇ Exportar</button>
   </div>
 </div>
 
@@ -284,6 +301,7 @@ tbody td{padding:8px 10px;vertical-align:middle}
     <div class="card" id="profDetail" style="display:none;">
       <div class="card-title"><span class="dot"></span>Detalle: <span id="profDetailName"></span></div>
       <div style="height:200px;position:relative;"><canvas id="cProfDetail"></canvas></div>
+      <div id="profDetailTable"></div>
     </div>
   </div>
 </div>
@@ -1071,33 +1089,87 @@ function selectProf(p, el){
   el.classList.add('active');
   const det = document.getElementById('profDetail');
   det.style.display='block';
-  document.getElementById('profDetailName').textContent = p;
   const d = ALL.filter(r=>r.responsable===p);
   const sujetos = new Set(d.map(r=>r.id)).size;
 
-  // Update detail header with sujetos / acciones
+  // Update detail header
   const detTitle = document.getElementById('profDetailName');
   detTitle.innerHTML = `${p} &nbsp;<span style="font-size:12px;color:var(--tx2);font-weight:400;">${sujetos} sujetos · ${d.length} acciones</span>`;
 
   const stgLabels=['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs Impl.'];
   const ctx = document.getElementById('cProfDetail')?.getContext('2d');
-  if(!ctx) return;
-  if(activeProfChart) activeProfChart.destroy();
-  activeProfChart = new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:stgLabels,
-      datasets:[
-        {label:'Completado',data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='completado').length),backgroundColor:'#27AE60',borderRadius:4},
-        {label:'En proceso',data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='en proceso').length),backgroundColor:'#F39C12',borderRadius:4},
-        {label:'Pendiente',data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='pendiente').length),backgroundColor:'#E74C3C',borderRadius:4},
-        {label:'Sin iniciar',data:stgLabels.map((_,s)=>!autoEstado(r,s)?1:0),backgroundColor:'#4A6A85',borderRadius:4},
-      ]
-    },
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:'rgba(221,232,245,.85)',font:{size:10},boxWidth:10}}},
-      scales:{x:{stacked:true,ticks:{color:'rgba(221,232,245,.8)',font:{size:9}},grid:{color:'rgba(42,64,96,.4)'}},y:{stacked:true,ticks:{color:'rgba(221,232,245,.8)',font:{size:9}},grid:{color:'rgba(42,64,96,.4)'},beginAtZero:true}}}
-  });
+  if(ctx){
+    if(activeProfChart) activeProfChart.destroy();
+    activeProfChart = new Chart(ctx,{
+      type:'bar',
+      data:{
+        labels:stgLabels,
+        datasets:[
+          {label:'Completado', data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='completado').length), backgroundColor:'#27AE60',borderRadius:4},
+          {label:'En proceso', data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='en proceso').length), backgroundColor:'#F39C12',borderRadius:4},
+          {label:'Pendiente',  data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='pendiente').length),  backgroundColor:'#E74C3C',borderRadius:4},
+          {label:'Sin iniciar',data:stgLabels.map((_,s)=>autoEstado(r,s)===''?1:0).map((_,s)=>d.filter(r=>autoEstado(r,s)==='').length), backgroundColor:'#4A6A85',borderRadius:4},
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'rgba(221,232,245,.85)',font:{size:10},boxWidth:10}}},
+        scales:{x:{stacked:true,ticks:{color:'rgba(221,232,245,.8)',font:{size:9}},grid:{color:'rgba(42,64,96,.4)'}},
+                y:{stacked:true,ticks:{color:'rgba(221,232,245,.8)',font:{size:9}},grid:{color:'rgba(42,64,96,.4)'},beginAtZero:true}}}
+    });
+  }
+
+  // Render SRC table for this professional
+  const stgColors=['#5DADE2','#BB8FCE','#76D7C4','#E59866','#F1948A','#82E0AA'];
+  const tableHtml = `
+    <div style="overflow-x:auto;margin-top:16px;border:1px solid var(--bd);border-radius:8px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#0D1E30;">
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">ID</th>
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">SRC / Nombre</th>
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">Cód. Acción</th>
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">Tipo</th>
+            ${stgLabels.map((l,i)=>`<th style="padding:8px 6px;text-align:center;color:${stgColors[i]};font-size:10px;white-space:nowrap;">${['①','②','③','④','⑤','⑥'][i]} ${l}</th>`).join('')}
+            <th style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;">Avance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${d.map(rec=>{
+            const tipoBadge = rec.tipo==='Ordenes Judiciales'
+              ? `<span style="background:rgba(41,128,185,.15);color:#2980B9;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;border:1px solid rgba(41,128,185,.3);">OJ</span>`
+              : `<span style="background:rgba(142,68,173,.15);color:#8E44AD;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;border:1px solid rgba(142,68,173,.3);">ANI</span>`;
+            const stages = stgLabels.map((_,s)=>{
+              const color = smColor(rec,s);
+              const label = smLabel(color, autoEstado(rec,s), null);
+              return `<td style="text-align:center;padding:6px;">
+                <div class="sm sm-${color}" style="width:22px;height:22px;font-size:10px;margin:0 auto;" title="${label}" onclick="openModal(${rec._i},event)">${smIcon(color)}</div>
+              </td>`;
+            }).join('');
+            const prog = calcProg(rec);
+            const pColor = prog===100?'var(--ok)':prog>0?'var(--yn)':'var(--gy)';
+            return `<tr style="border-bottom:1px solid rgba(42,64,96,.35);cursor:pointer;transition:background .12s;" onmouseover="this.style.background='rgba(0,200,212,.04)'" onmouseout="this.style.background=''" onclick="openModal(${rec._i},event)">
+              <td style="padding:7px 10px;color:var(--tx2);font-size:11px;">${rec.id}</td>
+              <td style="padding:7px 10px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${rec.nombre}">${rec.nombre}</td>
+              <td style="padding:7px 10px;color:var(--ac);font-weight:700;font-size:11px;">${rec.accion_id}</td>
+              <td style="padding:7px 10px;">${tipoBadge}</td>
+              ${stages}
+              <td style="padding:7px 10px;min-width:80px;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="flex:1;height:5px;background:var(--bd);border-radius:3px;overflow:hidden;">
+                    <div style="width:${prog}%;height:100%;background:${pColor};border-radius:3px;"></div>
+                  </div>
+                  <span style="font-size:10px;color:${pColor};font-weight:700;">${prog}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  document.getElementById('profDetailTable').innerHTML = tableHtml;
+
+  // Scroll detail into view
+  det.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 // ══════════════════════════════════════════════════════
