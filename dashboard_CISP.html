@@ -376,6 +376,7 @@ tbody td{padding:8px 10px;vertical-align:middle}
 
 <script>
 const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSrL3i329_PVWCZwZYk6I7Af2gnyPPSfph2ydEZxkNHq5abL_BKK6OQZJC542D2DA/pub?gid=1413744520&single=true&output=csv';
+const SCRIPT_URL = 'https://script.google.com/a/macros/cispcolombia.org/s/AKfycbw_YvVsO-XRLymILdw_f0uM_Lh18Zvocrow02TS_X88F079D9VsE1DMM-BW23DSLlIjTg/exec';
 let RAW = [];
 
 // ══════════════════════════════════════════════════════
@@ -1422,7 +1423,34 @@ function toggleStg(el){
 function closeModal(){document.getElementById('overlay').classList.remove('open');editIdx=null;}
 function closeIf(e){if(e.target===document.getElementById('overlay')) closeModal();}
 
-function saveRec(){
+// Campos que se escriben de vuelta al Google Sheet (columnas existentes)
+const SHEET_FIELDS = {
+  'estado_accion': 18,
+  'diag_val_docs': 57, 'diag_cargue': 58, 'diag_docs_pend': 59,
+  'cont_socializacion': 60, 'cont_envio': 61, 'cont_recepcion': 62,
+  'val_revision': 63, 'val_cotizaciones': 64, 'val_novedad': 65,
+  'val_responsable_nov': 66, 'val_novedad_fin': 67,
+  'rad_docs_drive': 68, 'rad_notif': 69,
+  'firma_correo': 70, 'firma_profesional': 71,
+  'doc_acta': 72, 'doc_informe': 73, 'doc_fotos': 74, 'doc_bases': 75,
+};
+
+async function writeToSheets(accion_id, campos) {
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify({accion_id, campos})
+    });
+    return true;
+  } catch(e) {
+    console.warn('Write to Sheets failed:', e);
+    return false;
+  }
+}
+
+async function saveRec(){
   if(editIdx===null) return;
   const rec = ALL[editIdx];
   const allFields = ['estado_accion','suspension_fecha','reactivacion_fecha',
@@ -1433,10 +1461,14 @@ function saveRec(){
     'firma_correo','firma_profesional','firma_estado','firma_fecha','firma_kobo',
     'doc_acta','doc_informe','doc_fotos','doc_bases','doc_estado','doc_fecha','doc_kobo',
   ];
+
+  // Leer valores del formulario
   allFields.forEach(k=>{
     const el = document.getElementById('field_'+k);
     if(el) rec[k] = el.value;
   });
+
+  // 1. Guardar en localStorage
   const ed = loadEdits();
   ed[rec._k] = {};
   allFields.forEach(k=>ed[rec._k][k]=rec[k]);
@@ -1445,9 +1477,14 @@ function saveRec(){
   doFilter();
   renderKPIs();
   closeModal();
-  showToast('✅ Guardado correctamente','t-ok');
-  // Refresh alerts if on that page
   if(document.getElementById('page-alerts').classList.contains('active')) renderAlerts();
+
+  // 2. Escribir al Google Sheet (solo campos que existen en el Sheet)
+  showToast('💾 Guardando en Google Sheets...','t-ok');
+  const camposSheet = {};
+  Object.keys(SHEET_FIELDS).forEach(k=>{ if(rec[k]!==undefined) camposSheet[k]=rec[k]; });
+  const ok = await writeToSheets(rec.accion_id, camposSheet);
+  showToast(ok ? '✅ Guardado en Sheets correctamente' : '✅ Guardado local (Sheets no disponible)', ok ? 't-ok' : 't-er');
 }
 
 function exportJSON(){
