@@ -515,6 +515,24 @@ function csvToRecords(csvText) {
         rec[key] = val === 'nan' || val === 'NaN' ? '' : val;
       }
     });
+
+    // Index-based fallback for critical fields that sometimes lose their header mapping
+    // These are fixed column positions in the sheet (0-based):
+    const IDX = {
+      tipo: 0, id: 1, nombre: 2, caso_tipo: 3, fase: 4, categoria: 5,
+      zona: 6, macroregion: 7, dt: 8, municipio: 9, departamento: 10,
+      anio: 11, medida_id: 12, medida: 13, accion_id: 14, accion: 15,
+      accion_tipo: 16, estado_accion: 17, responsable: 35,
+      doc_acta_reunion: 29, doc_concertacion: 30, doc_implementacion: 31,
+      reunion_realizada: 41, fecha_reunion: 42,
+    };
+    Object.entries(IDX).forEach(([key, idx]) => {
+      if (!rec[key] && idx < cells.length) {
+        const val = (cells[idx] || '').trim();
+        if (val && val !== 'nan' && val !== 'NaN') rec[key] = val;
+      }
+    });
+
     rec.estado_accion = normalizeEstado(rec.estado_accion);
     records.push(rec);
   }
