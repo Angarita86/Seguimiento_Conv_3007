@@ -411,6 +411,14 @@ function normalizeEstado(v) {
   return v.trim();
 }
 
+// Normaliza valores numéricos: "214.0" → "214", "46128.0" → "46128"
+function normalizeNum(v) {
+  if (!v) return v;
+  const s = v.trim();
+  if (/^\d+\.0+$/.test(s)) return s.replace(/\.0+$/, '');
+  return s;
+}
+
 function csvToRecords(csvText) {
   const lines = csvText.split('\n').filter(l => l.trim());
   if (lines.length < 3) return [];
@@ -537,6 +545,10 @@ function csvToRecords(csvText) {
     });
 
     rec.estado_accion = normalizeEstado(rec.estado_accion);
+    // Normalizar IDs numéricos (quitar .0 que agrega Excel/Sheets)
+    rec.id = normalizeNum(rec.id);
+    rec.accion_id = normalizeNum(rec.accion_id);
+    rec.medida_id = normalizeNum(rec.medida_id);
     records.push(rec);
   }
   return records;
@@ -712,56 +724,54 @@ function hasSi(v){return v && (v.toLowerCase().trim()==='si'||v.toLowerCase().tr
 function hasVal(v){return v && v.trim()!=='' && v.trim().toLowerCase()!=='nan'}
 
 function autoEstado(rec, stage){
-  // If manually set, use that
+  // Primero: usar el estado manual si fue registrado
   const manualMap = ['diag_estado','cont_estado','val_estado','rad_estado','firma_estado','doc_estado'];
   const manual = rec[manualMap[stage]];
   if(hasVal(manual)) return manual;
 
-  // Auto-detect from existing fields
+  // Auto-detectar SOLO desde columnas de seguimiento dedicadas (BE:CU)
+  // NO usar campos base como reunion_realizada, doc_concertacion, doc_implementacion
   switch(stage){
-    case 0: { // Diagnóstico — ALWAYS required
+    case 0: { // Diagnóstico — siempre requerido
       const hasAny = hasVal(rec.diag_val_docs)||hasVal(rec.diag_cargue)||hasVal(rec.diag_docs_pend);
       if(hasAny) return 'En proceso';
-      return 'Pendiente'; // Always red if no data
+      return 'Pendiente'; // Rojo siempre si no hay datos
     }
-    case 1: { // Contactabilidad
-      const reunOk = hasSi(rec.reunion_realizada)||hasVal(rec.reunion_realizada);
-      const corrOk = hasVal(rec.correo_formatos)&&hasVal(rec.correo_respuesta);
-      const socOk = hasVal(rec.cont_socializacion);
+    case 1: { // Contactabilidad — solo columnas BL, BM, BN
       const envOk = hasVal(rec.cont_envio)&&hasVal(rec.cont_recepcion);
-      if(envOk&&corrOk) return 'Completado';
-      if(reunOk||socOk||hasVal(rec.cont_envio)) return 'En proceso';
-      return ''; // Not yet started
+      if(envOk && hasVal(rec.cont_socializacion)) return 'Completado';
+      if(hasVal(rec.cont_socializacion)||hasVal(rec.cont_envio)||hasVal(rec.cont_recepcion)) return 'En proceso';
+      return '';
     }
-    case 2: { // Validación
-      const revOk = hasSi(rec.rev_kobo);
+    case 2: { // Validación — solo columnas BS, BT, BU, BV, BW
       const docOk = hasVal(rec.val_revision);
       const cotOk = hasVal(rec.val_cotizaciones);
-      if(revOk&&docOk&&cotOk) return 'Completado';
-      if(revOk||docOk||cotOk||hasVal(rec.val_novedad)) return 'En proceso';
+      const novFin = hasVal(rec.val_novedad_fin);
+      if(docOk&&cotOk&&novFin) return 'Completado';
+      if(docOk||cotOk||hasVal(rec.val_novedad)) return 'En proceso';
       return '';
     }
-    case 3: { // Radicación — ACTA CONCERTACIÓN + drive
-      const concOk = hasSi(rec.doc_concertacion);
+    case 3: { // Radicación — solo columnas CB, CC
       const driveOk = hasVal(rec.rad_docs_drive);
       const notifOk = hasVal(rec.rad_notif);
-      if(concOk&&driveOk&&notifOk) return 'Completado';
-      if(concOk||driveOk||notifOk) return 'En proceso';
+      if(driveOk&&notifOk) return 'Completado';
+      if(driveOk||notifOk) return 'En proceso';
       return '';
     }
-    case 4: { // Firma
+    case 4: { // Firma — solo columnas CH, CI
       const firmaCo = hasVal(rec.firma_correo);
       const profOk = hasVal(rec.firma_profesional);
       if(firmaCo&&profOk) return 'Completado';
       if(firmaCo||profOk) return 'En proceso';
       return '';
     }
-    case 5: { // Documentos implementación
-      const implOk = hasSi(rec.doc_implementacion);
+    case 5: { // Documentos implementación — solo columnas CN, CO, CP, CQ
       const actaOk = hasVal(rec.doc_acta);
       const infOk = hasVal(rec.doc_informe);
-      if(implOk&&actaOk&&infOk) return 'Completado';
-      if(implOk||actaOk||infOk||hasVal(rec.doc_fotos)) return 'En proceso';
+      const fotOk = hasVal(rec.doc_fotos);
+      const basOk = hasVal(rec.doc_bases);
+      if(actaOk&&infOk&&fotOk&&basOk) return 'Completado';
+      if(actaOk||infOk||fotOk||basOk) return 'En proceso';
       return '';
     }
   }
@@ -772,8 +782,6 @@ function autoKobo(rec, stage){
   const koboMap = ['diag_kobo','cont_kobo','val_kobo','rad_kobo','firma_kobo','doc_kobo'];
   const manual = rec[koboMap[stage]];
   if(hasVal(manual)) return manual;
-  // Stage 0: infer from rev_kobo
-  if(stage===0 && hasSi(rec.rev_kobo)) return 'Sí';
   return '';
 }
 
@@ -781,8 +789,6 @@ function autoFecha(rec, stage){
   const fechaMap = ['diag_fecha','cont_fecha','val_fecha','rad_fecha','firma_fecha','doc_fecha'];
   const f = rec[fechaMap[stage]];
   if(hasVal(f)) return f;
-  // Fallback for stage 1: use fecha_reunion
-  if(stage===1 && hasVal(rec.fecha_reunion)) return rec.fecha_reunion;
   return '';
 }
 
