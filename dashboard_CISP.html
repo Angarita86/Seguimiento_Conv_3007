@@ -437,30 +437,33 @@ function csvToRecords(csvText) {
     'Revisión Kobo':'rev_kobo','Revisión NAS':'rev_nas','Revisión DRIVE':'rev_drive',
     'Observación':'obs_interna','correo con formatos':'correo_formatos',
     'correo de respuesta':'correo_respuesta',
+    // Stage 1
     'validación de documentos inicial':'diag_val_docs',
     'cargue de información':'diag_cargue','Documentos pendientes':'diag_docs_pend',
     'Estado_Diag':'diag_estado','Fecha_Diag':'diag_fecha','KOBO_Diag':'diag_kobo',
-    'Socialización':'cont_socializacion','Envio de formatos':'cont_envio',
-    'Recepción de formatos':'cont_recepcion',
+    'Obsercaicones Diagnostico':'diag_obs','Observaciones Diagnóstico':'diag_obs','Observaciones diagnostico':'diag_obs',
+    // Stage 2
+    'Socialización':'cont_socializacion','Envio de formatos':'cont_envio','Recepción de formatos':'cont_recepcion',
     'Estado_Cont':'cont_estado','Fecha_Cont':'cont_fecha','KOBO_Cont':'cont_kobo',
+    'Observaciones Contactabilidad':'cont_obs','observaciones contactabilidad':'cont_obs',
+    // Stage 3
     'Revisión documental':'val_revision','Cotizaciones':'val_cotizaciones',
-    'Novedad':'val_novedad','Responsable':'val_responsable_nov',
-    'Novedad finalizada':'val_novedad_fin',
+    'Novedad':'val_novedad','Responsable':'val_responsable_nov','Novedad finalizada':'val_novedad_fin',
     'Estado_Vali':'val_estado','Fecha_Vali':'val_fecha','KOBO_Vali':'val_kobo',
+    'observaciones valid':'val_obs','Observaciones Validación':'val_obs','Observaciones valid':'val_obs',
+    // Stage 4
     'Documentos en Drive':'rad_docs_drive','Notificación a coordinación':'rad_notif',
     'Estado_Radi':'rad_estado','Fecha_Radi':'rad_fecha','KOBO_Radi':'rad_kobo',
-    'Correo de acuerdos corporativos':'firma_correo',
-    'Profesional acompaña misión':'firma_profesional',
+    'Observaciones Radic':'rad_obs','Observaciones Radicación':'rad_obs',
+    // Stage 5
+    'Correo de acuerdos corporativos':'firma_correo','Profesional acompaña misión':'firma_profesional',
     'Estado_Firm':'firma_estado','Fecha_Firm':'firma_fecha','KOBO_Firm':'firma_kobo',
+    'Observaciones Firma':'firma_obs','observaciones firma':'firma_obs',
+    // Stage 6
     'Acta de entrega':'doc_acta','Informe operativo':'doc_informe',
-    'Registros fotografico':'doc_fotos',
-    'Bases de los participantes a los cursos':'doc_bases',
+    'Registros fotografico':'doc_fotos','Bases de los participantes a los cursos':'doc_bases',
     'Estado_DocI':'doc_estado','Fecha_DocI':'doc_fecha','KOBO_DocI':'doc_kobo',
-  'Obsercaicones Diagnostico':'diag_obs','Observaciones Diagnóstico':'diag_obs',
-  'Observaciones Contactabilidad':'cont_obs','observaciones valid':'val_obs',
-  'Observaciones Validación':'val_obs','Observaciones Radic':'rad_obs',
-  'Observaciones Radicación':'rad_obs','Observaciones Firma':'firma_obs',
-  'Observaciones DocImpl':'doc_obs','Observaciones Docs Implementación':'doc_obs',
+    'Observaciones DocImpl':'doc_obs','Observaciones Docs Implementación':'doc_obs',
   };
 
   const DEFAULT_REC = {
@@ -660,6 +663,9 @@ function showLoader(show, msg) {
 const SK = 'cisp_v2_edits';
 const DAYS_LIMIT = 8;
 
+// Solo estos 2 campos viven en localStorage (no existen en el Sheet)
+const LOCAL_ONLY_FIELDS = ['suspension_fecha','reactivacion_fecha'];
+
 function loadEdits(){try{return JSON.parse(localStorage.getItem(SK)||'{}')}catch{return{}}}
 function saveEdits(e){localStorage.setItem(SK,JSON.stringify(e))}
 function recKey(r){return r.id+'_'+r.accion_id}
@@ -668,11 +674,28 @@ function mergeData(){
   const ed = loadEdits();
   return RAW.map((r,i)=>{
     const k = recKey(r);
-    const merged = {...r,...(ed[k]||{})};
+    const saved = ed[k] || {};
+    const merged = {...r};
+    // Solo aplicar localStorage para campos que NO están en Sheets
+    LOCAL_ONLY_FIELDS.forEach(f=>{ if(saved[f]) merged[f] = saved[f]; });
     merged._i = i;
     merged._k = k;
     return merged;
   });
+}
+
+// Limpiar localStorage obsoleto que pueda estar sobreescribiendo datos de Sheets
+function clearStaleCache(){
+  try {
+    const ed = loadEdits();
+    const cleaned = {};
+    Object.keys(ed).forEach(k=>{
+      const rec = {};
+      LOCAL_ONLY_FIELDS.forEach(f=>{ if(ed[k][f]) rec[f]=ed[k][f]; });
+      if(Object.keys(rec).length) cleaned[k] = rec;
+    });
+    saveEdits(cleaned);
+  } catch(e){}
 }
 
 let ALL = mergeData();
@@ -1504,29 +1527,35 @@ async function saveRec(){
     'doc_acta','doc_informe','doc_fotos','doc_bases','doc_estado','doc_fecha','doc_kobo','doc_obs',
   ];
 
-  // Leer valores del formulario
+  // Leer valores del formulario → actualizar en memoria
   allFields.forEach(k=>{
     const el = document.getElementById('field_'+k);
     if(el) rec[k] = el.value;
   });
 
-  // 1. Guardar en localStorage
+  // 1. Solo guardar campos locales en localStorage
   const ed = loadEdits();
   ed[rec._k] = {};
-  allFields.forEach(k=>ed[rec._k][k]=rec[k]);
+  LOCAL_ONLY_FIELDS.forEach(k=>{ if(rec[k]) ed[rec._k][k]=rec[k]; });
   saveEdits(ed);
+
+  // Actualizar en memoria y refrescar UI
   ALL[editIdx] = rec;
   doFilter();
   renderKPIs();
   closeModal();
   if(document.getElementById('page-alerts').classList.contains('active')) renderAlerts();
 
-  // 2. Escribir al Google Sheet (solo campos que existen en el Sheet)
+  // 2. Escribir TODOS los campos al Google Sheet
   showToast('💾 Guardando en Google Sheets...','t-ok');
   const camposSheet = {};
   Object.keys(SHEET_FIELDS).forEach(k=>{ if(rec[k]!==undefined) camposSheet[k]=rec[k]; });
   const ok = await writeToSheets(rec.accion_id, camposSheet);
-  showToast(ok ? '✅ Guardado en Sheets correctamente' : '✅ Guardado local (Sheets no disponible)', ok ? 't-ok' : 't-er');
+  if(ok){
+    showToast('✅ Guardado en Sheets · Presiona ⟳ para ver cambios','t-ok');
+  } else {
+    showToast('⚠️ Error al guardar en Sheets — verifica conexión','t-er');
+  }
 }
 
 function exportJSON(){
@@ -1542,6 +1571,7 @@ function showToast(msg,cls='t-ok'){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
+  clearStaleCache(); // Limpia localStorage obsoleto antes de cargar
   loadFromSheets();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});
