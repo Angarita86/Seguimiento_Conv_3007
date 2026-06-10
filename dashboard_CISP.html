@@ -375,30 +375,8 @@ tbody td{padding:8px 10px;vertical-align:middle}
 <div class="toast" id="toast"></div>
 
 <script>
-const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSrL3i329_PVWCZwZYk6I7Af2gnyPPSfph2ydEZxkNHq5abL_BKK6OQZJC542D2DA/pub?gid=1413744520&single=true&output=csv';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAf57ajNzskWebDJplFGM-1IZ5kr6UR6QAztVuV_1kUOE0JsBdEBw6T57VC0rwwy5c_Q/exec';
 let RAW = [];
-
-// ══════════════════════════════════════════════════════
-// CSV PARSER
-// ══════════════════════════════════════════════════════
-function parseCSVLine(line) {
-  const result = [];
-  let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
-    } else if (c === ',' && !inQ) {
-      result.push(cur); cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  result.push(cur);
-  return result;
-}
 
 function normalizeEstado(v) {
   if (!v) return 'Sin estado';
@@ -419,133 +397,127 @@ function normalizeNum(v) {
   return s;
 }
 
-function csvToRecords(csvText) {
-  const lines = csvText.split('\n').filter(l => l.trim());
-  if (lines.length < 3) return [];
+// ══════════════════════════════════════════════════════
+// FIELD MAPPING (Sheet header → internal key)
+// ══════════════════════════════════════════════════════
+const FIELD_MAP = {
+  'Tipo':'tipo','ID':'id','Caso_Nombre':'nombre','Caso_Tipo':'caso_tipo',
+  'Fase':'fase','Caso_Categoria':'categoria','Zona':'zona','MacroRegión':'macroregion',
+  'Caso_DT':'dt','Caso_Mpio':'municipio','Caso_Dpto':'departamento','año':'anio',
+  'Medida_Id':'medida_id','Producto / Medida':'medida','Acción_Id':'accion_id',
+  'Actividad / Acción':'accion','Acción_Tipo':'accion_tipo',
+  'Estado de la acción ':'estado_accion','Estado de la acción':'estado_accion',
+  'OBSERVACIONES/ OTROS ':'observaciones','OBSERVACIONES/ OTROS':'observaciones',
+  'DESCRIPCIÓN DETALLADA DE LA ACCION ':'descripcion','DESCRIPCIÓN DETALLADA DE LA ACCION':'descripcion',
+  'Responsable CISP':'responsable',
+  'DOCUMENTO PIRC':'doc_pirc','MATRIZ CADENA DE VALOR':'doc_cadena',
+  'ACTA REUNIÓN':'doc_acta_reunion','ACTA DE CONCERTACIÓN':'doc_concertacion',
+  'ACTA IMPLEMENTACIÓN ACCIÓN':'doc_implementacion',
+  'Reunión realizada':'reunion_realizada','Fecha Reunión':'fecha_reunion',
+  'Representante SRC':'representante_src',
+  'Revisión Kobo':'rev_kobo','Revisión NAS':'rev_nas','Revisión DRIVE':'rev_drive',
+  'Observación':'obs_interna','correo con formatos':'correo_formatos',
+  'correo de respuesta':'correo_respuesta',
+  // Stage 1
+  'validación de documentos inicial':'diag_val_docs',
+  'cargue de información':'diag_cargue','Documentos pendientes':'diag_docs_pend',
+  'Estado_Diag':'diag_estado','Fecha_Diag':'diag_fecha','KOBO_Diag':'diag_kobo',
+  'Obsercaicones Diagnostico':'diag_obs','Observaciones Diagnóstico':'diag_obs','Observaciones diagnostico':'diag_obs',
+  // Stage 2
+  'Socialización':'cont_socializacion','Envio de formatos':'cont_envio','Recepción de formatos':'cont_recepcion',
+  'Estado_Cont':'cont_estado','Fecha_Cont':'cont_fecha','KOBO_Cont':'cont_kobo',
+  'Observaciones Contactabilidad':'cont_obs','observaciones contactabilidad':'cont_obs',
+  // Stage 3
+  'Revisión documental':'val_revision','Cotizaciones':'val_cotizaciones',
+  'Novedad':'val_novedad','Responsable':'val_responsable_nov','Novedad finalizada':'val_novedad_fin',
+  'Estado_Vali':'val_estado','Fecha_Vali':'val_fecha','KOBO_Vali':'val_kobo',
+  'observaciones valid':'val_obs','Observaciones Validación':'val_obs','Observaciones valid':'val_obs',
+  // Stage 4
+  'Documentos en Drive':'rad_docs_drive','Notificación a coordinación':'rad_notif',
+  'Estado_Radi':'rad_estado','Fecha_Radi':'rad_fecha','KOBO_Radi':'rad_kobo',
+  'Observaciones Radic':'rad_obs','Observaciones Radicación':'rad_obs',
+  // Stage 5
+  'Correo de acuerdos corporativos':'firma_correo','Profesional acompaña misión':'firma_profesional',
+  'Estado_Firm':'firma_estado','Fecha_Firm':'firma_fecha','KOBO_Firm':'firma_kobo',
+  'Observaciones Firma':'firma_obs','observaciones firma':'firma_obs',
+  // Stage 6
+  'Acta de entrega':'doc_acta','Informe operativo':'doc_informe',
+  'Registros fotografico':'doc_fotos','Bases de los participantes a los cursos':'doc_bases',
+  'Estado_DocI':'doc_estado','Fecha_DocI':'doc_fecha','KOBO_DocI':'doc_kobo',
+  'Observaciones DocImpl':'doc_obs','Observaciones Docs Implementación':'doc_obs',
+};
 
-  // Row 1 = group headers (skip), Row 2 = column names, Row 3+ = data
-  const headers = parseCSVLine(lines[1]);  // 0-indexed: row index 1 = row 2
+// Fallback por posición fija de columna (0-based) para campos críticos
+const IDX_FALLBACK = {
+  tipo: 0, id: 1, nombre: 2, caso_tipo: 3, fase: 4, categoria: 5,
+  zona: 6, macroregion: 7, dt: 8, municipio: 9, departamento: 10,
+  anio: 11, medida_id: 12, medida: 13, accion_id: 14, accion: 15,
+  accion_tipo: 16, estado_accion: 17, responsable: 35,
+  doc_acta_reunion: 29, doc_concertacion: 30, doc_implementacion: 31,
+  reunion_realizada: 41, fecha_reunion: 42,
+};
 
-  // Field name mapping from CSV header to internal key
-  const FIELD_MAP = {
-    'Tipo':'tipo','ID':'id','Caso_Nombre':'nombre','Caso_Tipo':'caso_tipo',
-    'Fase':'fase','Caso_Categoria':'categoria','Zona':'zona','MacroRegión':'macroregion',
-    'Caso_DT':'dt','Caso_Mpio':'municipio','Caso_Dpto':'departamento','año':'anio',
-    'Medida_Id':'medida_id','Producto / Medida':'medida','Acción_Id':'accion_id',
-    'Actividad / Acción':'accion','Acción_Tipo':'accion_tipo',
-    'Estado de la acción ':'estado_accion','Estado de la acción':'estado_accion',
-    'OBSERVACIONES/ OTROS ':'observaciones','OBSERVACIONES/ OTROS':'observaciones',
-    'DESCRIPCIÓN DETALLADA DE LA ACCION ':'descripcion','DESCRIPCIÓN DETALLADA DE LA ACCION':'descripcion',
-    'Responsable CISP':'responsable',
-    'DOCUMENTO PIRC':'doc_pirc','MATRIZ CADENA DE VALOR':'doc_cadena',
-    'ACTA REUNIÓN':'doc_acta_reunion','ACTA DE CONCERTACIÓN':'doc_concertacion',
-    'ACTA IMPLEMENTACIÓN ACCIÓN':'doc_implementacion',
-    'Reunión realizada':'reunion_realizada','Fecha Reunión':'fecha_reunion',
-    'Representante SRC':'representante_src',
-    'Revisión Kobo':'rev_kobo','Revisión NAS':'rev_nas','Revisión DRIVE':'rev_drive',
-    'Observación':'obs_interna','correo con formatos':'correo_formatos',
-    'correo de respuesta':'correo_respuesta',
-    // Stage 1
-    'validación de documentos inicial':'diag_val_docs',
-    'cargue de información':'diag_cargue','Documentos pendientes':'diag_docs_pend',
-    'Estado_Diag':'diag_estado','Fecha_Diag':'diag_fecha','KOBO_Diag':'diag_kobo',
-    'Obsercaicones Diagnostico':'diag_obs','Observaciones Diagnóstico':'diag_obs','Observaciones diagnostico':'diag_obs',
-    // Stage 2
-    'Socialización':'cont_socializacion','Envio de formatos':'cont_envio','Recepción de formatos':'cont_recepcion',
-    'Estado_Cont':'cont_estado','Fecha_Cont':'cont_fecha','KOBO_Cont':'cont_kobo',
-    'Observaciones Contactabilidad':'cont_obs','observaciones contactabilidad':'cont_obs',
-    // Stage 3
-    'Revisión documental':'val_revision','Cotizaciones':'val_cotizaciones',
-    'Novedad':'val_novedad','Responsable':'val_responsable_nov','Novedad finalizada':'val_novedad_fin',
-    'Estado_Vali':'val_estado','Fecha_Vali':'val_fecha','KOBO_Vali':'val_kobo',
-    'observaciones valid':'val_obs','Observaciones Validación':'val_obs','Observaciones valid':'val_obs',
-    // Stage 4
-    'Documentos en Drive':'rad_docs_drive','Notificación a coordinación':'rad_notif',
-    'Estado_Radi':'rad_estado','Fecha_Radi':'rad_fecha','KOBO_Radi':'rad_kobo',
-    'Observaciones Radic':'rad_obs','Observaciones Radicación':'rad_obs',
-    // Stage 5
-    'Correo de acuerdos corporativos':'firma_correo','Profesional acompaña misión':'firma_profesional',
-    'Estado_Firm':'firma_estado','Fecha_Firm':'firma_fecha','KOBO_Firm':'firma_kobo',
-    'Observaciones Firma':'firma_obs','observaciones firma':'firma_obs',
-    // Stage 6
-    'Acta de entrega':'doc_acta','Informe operativo':'doc_informe',
-    'Registros fotografico':'doc_fotos','Bases de los participantes a los cursos':'doc_bases',
-    'Estado_DocI':'doc_estado','Fecha_DocI':'doc_fecha','KOBO_DocI':'doc_kobo',
-    'Observaciones DocImpl':'doc_obs','Observaciones Docs Implementación':'doc_obs',
-  };
+const DEFAULT_REC = {
+  tipo:'',id:'',nombre:'',caso_tipo:'',fase:'',categoria:'',zona:'',macroregion:'',
+  dt:'',municipio:'',departamento:'',anio:'',medida_id:'',medida:'',accion_id:'',
+  accion:'',accion_tipo:'',estado_accion:'',observaciones:'',descripcion:'',
+  responsable:'',doc_pirc:'',doc_cadena:'',doc_acta_reunion:'',doc_concertacion:'',
+  doc_implementacion:'',reunion_realizada:'',fecha_reunion:'',representante_src:'',
+  rev_kobo:'',rev_nas:'',rev_drive:'',obs_interna:'',correo_formatos:'',
+  correo_respuesta:'',
+  diag_val_docs:'',diag_cargue:'',diag_docs_pend:'',
+  diag_estado:'',diag_fecha:'',diag_kobo:'',
+  cont_socializacion:'',cont_envio:'',cont_recepcion:'',
+  cont_estado:'',cont_fecha:'',cont_kobo:'',
+  val_revision:'',val_cotizaciones:'',val_novedad:'',val_responsable_nov:'',val_novedad_fin:'',
+  val_estado:'',val_fecha:'',val_kobo:'',
+  rad_docs_drive:'',rad_notif:'',
+  rad_estado:'',rad_fecha:'',rad_kobo:'',
+  firma_correo:'',firma_profesional:'',
+  firma_estado:'',firma_fecha:'',firma_kobo:'',
+  doc_acta:'',doc_informe:'',doc_fotos:'',doc_bases:'',
+  doc_estado:'',doc_fecha:'',doc_kobo:'',
+  suspension_fecha:'',reactivacion_fecha:'',
+  diag_obs:'',cont_obs:'',val_obs:'',rad_obs:'',firma_obs:'',doc_obs:'',
+};
 
-  const DEFAULT_REC = {
-    tipo:'',id:'',nombre:'',caso_tipo:'',fase:'',categoria:'',zona:'',macroregion:'',
-    dt:'',municipio:'',departamento:'',anio:'',medida_id:'',medida:'',accion_id:'',
-    accion:'',accion_tipo:'',estado_accion:'',observaciones:'',descripcion:'',
-    responsable:'',doc_pirc:'',doc_cadena:'',doc_acta_reunion:'',doc_concertacion:'',
-    doc_implementacion:'',reunion_realizada:'',fecha_reunion:'',representante_src:'',
-    rev_kobo:'',rev_nas:'',rev_drive:'',obs_interna:'',correo_formatos:'',
-    correo_respuesta:'',
-    diag_val_docs:'',diag_cargue:'',diag_docs_pend:'',
-    diag_estado:'',diag_fecha:'',diag_kobo:'',
-    cont_socializacion:'',cont_envio:'',cont_recepcion:'',
-    cont_estado:'',cont_fecha:'',cont_kobo:'',
-    val_revision:'',val_cotizaciones:'',val_novedad:'',val_responsable_nov:'',val_novedad_fin:'',
-    val_estado:'',val_fecha:'',val_kobo:'',
-    rad_docs_drive:'',rad_notif:'',
-    rad_estado:'',rad_fecha:'',rad_kobo:'',
-    firma_correo:'',firma_profesional:'',
-    firma_estado:'',firma_fecha:'',firma_kobo:'',
-    doc_acta:'',doc_informe:'',doc_fotos:'',doc_bases:'',
-    doc_estado:'',doc_fecha:'',doc_kobo:'',
-    suspension_fecha:'',reactivacion_fecha:'',
-    diag_obs:'',cont_obs:'',val_obs:'',rad_obs:'',firma_obs:'',doc_obs:'',
-  };
-
+// ══════════════════════════════════════════════════════
+// CONVERTIR FILAS (desde Apps Script JSON) → REGISTROS
+// ══════════════════════════════════════════════════════
+function rowsToRecords(headers, rows) {
   const records = [];
-  for (let r = 2; r < lines.length; r++) {  // start at index 2 = row 3
-    const cells = parseCSVLine(lines[r]);
+  for (const cells of rows) {
+    const colTipo  = (cells[0]  || '').toString().trim();
+    const colId    = (cells[1]  || '').toString().trim();
+    const colNombre= (cells[2]  || '').toString().trim();
 
-    // Strong filter: columns A(0)=Tipo, B(1)=ID, C(2)=Nombre must have real data
-    const colTipo  = (cells[0] || '').trim();
-    const colId    = (cells[1] || '').trim();
-    const colNombre= (cells[2] || '').trim();
-
-    // Skip completely empty rows
+    // Saltar filas completamente vacías
     if (!colTipo && !colId && !colNombre) continue;
-
-    // Skip rows that look like repeated headers
+    // Saltar encabezados repetidos
     if (colTipo === 'Tipo' || colId === 'ID') continue;
-
-    // Skip rows where Tipo is not one of the two valid values
+    // Saltar filas donde Tipo no es válido
     const tipoLower = colTipo.toLowerCase();
     const validTipo = tipoLower.includes('judicial') || tipoLower.includes('implementada');
     if (!validTipo) continue;
 
     const rec = {...DEFAULT_REC};
     headers.forEach((h, i) => {
-      const key = FIELD_MAP[h.trim()];
+      const key = FIELD_MAP[(h||'').toString().trim()];
       if (key && i < cells.length) {
-        const val = (cells[i] || '').trim();
-        rec[key] = val === 'nan' || val === 'NaN' ? '' : val;
+        const val = (cells[i] == null ? '' : cells[i].toString()).trim();
+        rec[key] = (val === 'nan' || val === 'NaN') ? '' : val;
       }
     });
 
-    // Index-based fallback for critical fields that sometimes lose their header mapping
-    // These are fixed column positions in the sheet (0-based):
-    const IDX = {
-      tipo: 0, id: 1, nombre: 2, caso_tipo: 3, fase: 4, categoria: 5,
-      zona: 6, macroregion: 7, dt: 8, municipio: 9, departamento: 10,
-      anio: 11, medida_id: 12, medida: 13, accion_id: 14, accion: 15,
-      accion_tipo: 16, estado_accion: 17, responsable: 35,
-      doc_acta_reunion: 29, doc_concertacion: 30, doc_implementacion: 31,
-      reunion_realizada: 41, fecha_reunion: 42,
-    };
-    Object.entries(IDX).forEach(([key, idx]) => {
+    // Fallback por posición fija para campos críticos
+    Object.entries(IDX_FALLBACK).forEach(([key, idx]) => {
       if (!rec[key] && idx < cells.length) {
-        const val = (cells[idx] || '').trim();
+        const val = (cells[idx] == null ? '' : cells[idx].toString()).trim();
         if (val && val !== 'nan' && val !== 'NaN') rec[key] = val;
       }
     });
 
     rec.estado_accion = normalizeEstado(rec.estado_accion);
-    // Normalizar IDs numéricos (quitar .0 que agrega Excel/Sheets)
     rec.id = normalizeNum(rec.id);
     rec.accion_id = normalizeNum(rec.accion_id);
     rec.medida_id = normalizeNum(rec.medida_id);
@@ -553,55 +525,22 @@ function csvToRecords(csvText) {
   }
   return records;
 }
-
 // ══════════════════════════════════════════════════════
-// LOAD FROM GOOGLE SHEETS
+// LOAD FROM GOOGLE SHEETS (vía Apps Script — sin caché)
 // ══════════════════════════════════════════════════════
 let lastLoadTime = null;
 
-// ── FETCH STRATEGY: direct → proxy1 → proxy2 ───────────
-// Needed because browsers block file:// → https:// requests (CORS)
-const FETCH_ATTEMPTS = [
-  { label: 'Directo',          url: () => SHEETS_URL },
-  { label: 'Proxy allorigins', url: () => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(SHEETS_URL) },
-  { label: 'Proxy corsproxy',  url: () => 'https://corsproxy.io/?' + encodeURIComponent(SHEETS_URL) },
-];
-
-async function tryFetch(url, timeoutMs = 12000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(timer);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
-    // Sanity: must look like CSV (has commas, multiple lines, not HTML error page)
-    if (!text || text.length < 50 || text.trim().startsWith('<')) throw new Error('Respuesta no es CSV válido');
-    return text;
-  } catch(e) {
-    clearTimeout(timer);
-    throw e;
-  }
-}
-
 async function loadFromSheets() {
   showLoader(true, 'Conectando con Google Sheets…');
-  let csv = null;
-  let usedLabel = '';
+  try {
+    const url = SCRIPT_URL + '?t=' + Date.now();
+    const res = await fetch(url, {mode:'cors'});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.msg || 'Respuesta inválida del script');
+    if (!json.headers || !json.rows) throw new Error('El script no devolvió headers/rows. Actualiza el Apps Script.');
 
-  for (const attempt of FETCH_ATTEMPTS) {
-    try {
-      showLoader(true, `Intentando: ${attempt.label}…`);
-      csv = await tryFetch(attempt.url());
-      usedLabel = attempt.label;
-      break;
-    } catch(e) {
-      console.warn(`[CISP] ${attempt.label} falló:`, e.message);
-    }
-  }
-
-  if (csv) {
-    RAW = csvToRecords(csv);
+    RAW = rowsToRecords(json.headers, json.rows);
     lastLoadTime = new Date();
     updateLastLoad();
     ALL = mergeData();
@@ -610,35 +549,33 @@ async function loadFromSheets() {
     doFilter();
     renderCharts();
     showLoader(false);
-    showToast(`✅ Datos cargados (${usedLabel}) · ${RAW.length} registros`, 't-ok');
-  } else {
+    showToast(`✅ Datos cargados (en vivo) · ${RAW.length} registros`, 't-ok');
+  } catch(e) {
     showLoader(false);
-    showErrorScreen();
+    showErrorScreen(e.message);
   }
 }
-
-function showErrorScreen() {
+function showErrorScreen(msg) {
   const existing = document.getElementById('errorScreen');
-  if (existing) { existing.style.display = 'flex'; return; }
+  if (existing) {
+    existing.querySelector('#errMsgDetail').textContent = msg || '';
+    existing.style.display = 'flex';
+    return;
+  }
   const div = document.createElement('div');
   div.id = 'errorScreen';
   div.style.cssText = 'position:fixed;inset:0;background:#0B1622;z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;';
   div.innerHTML = `
     <div style="font-size:48px;">⚠️</div>
-    <div style="font-size:20px;font-weight:700;color:#E74C3C;">Error al conectar con Google Sheets</div>
+    <div style="font-size:20px;font-weight:700;color:#E74C3C;">Error al conectar con Google Apps Script</div>
     <div style="max-width:520px;background:#162336;border:1px solid #2A4060;border-radius:12px;padding:24px;font-size:13px;color:#8BAABF;line-height:1.8;">
-      <p style="color:#DDE8F5;font-weight:700;margin-bottom:12px;">¿Por qué ocurre esto?</p>
-      <p>Los navegadores bloquean las solicitudes a internet cuando el archivo se abre directamente desde el disco duro (<code style="background:#0B1622;padding:2px 5px;border-radius:4px;">file://</code>).</p>
-      <p style="margin-top:12px;color:#DDE8F5;font-weight:700;">Soluciones:</p>
+      <p style="color:#DDE8F5;font-weight:700;margin-bottom:8px;">Detalle del error:</p>
+      <p id="errMsgDetail" style="color:#E59866;font-family:monospace;font-size:11px;word-break:break-all;">${msg||''}</p>
+      <p style="margin-top:12px;color:#DDE8F5;font-weight:700;">Posibles causas:</p>
       <ol style="margin-left:18px;margin-top:6px;display:flex;flex-direction:column;gap:8px;">
-        <li><strong style="color:#00C8D4;">Opción A (más fácil):</strong> Abre el archivo con VS Code y usa la extensión <em>Live Server</em>, o usa Python:
-          <br><code style="background:#0B1622;padding:4px 8px;border-radius:4px;display:block;margin-top:4px;">python -m http.server 8080</code>
-          Luego abre: <code style="background:#0B1622;padding:2px 5px;border-radius:4px;">http://localhost:8080</code>
-        </li>
-        <li><strong style="color:#00C8D4;">Opción B:</strong> Sube el HTML a cualquier servidor web (GitHub Pages, Netlify, Google Sites).</li>
-        <li><strong style="color:#00C8D4;">Opción C:</strong> En Chrome, activa el acceso local con este comando:<br>
-          <code style="background:#0B1622;padding:4px 8px;border-radius:4px;display:block;margin-top:4px;font-size:11px;">chrome --disable-web-security --user-data-dir=/tmp/chrome</code>
-        </li>
+        <li>El Apps Script no está implementado con acceso <strong style="color:#00C8D4;">"Cualquier usuario"</strong>.</li>
+        <li>Se hizo un cambio al código del script pero no se creó una <strong style="color:#00C8D4;">nueva versión</strong> al implementar.</li>
+        <li>Conexión a internet inestable.</li>
       </ol>
     </div>
     <div style="display:flex;gap:10px;">
@@ -654,6 +591,7 @@ function showErrorScreen() {
   `;
   document.body.appendChild(div);
 }
+
 
 function updateLastLoad() {
   const el = document.getElementById('lastLoadBadge');
