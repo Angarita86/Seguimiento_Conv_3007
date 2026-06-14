@@ -1493,7 +1493,7 @@ const STAGES_CFG = [
     {k:'rad_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
     {k:'rad_obs',l:'Observaciones Radicación',t:'textarea'},
   ]},
-  {key:'firma',label:'⑤ Firma de Acuerdos',cls:'stg-4',fields:[
+  {key:'firma',label:'⑥ Firma de Acuerdos',cls:'stg-4',fields:[
     {k:'firma_correo',l:'Correo acuerdos corporativos',t:'text'},
     {k:'firma_profesional',l:'Profesional acompaña',t:'text'},
     {k:'firma_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
@@ -1501,7 +1501,7 @@ const STAGES_CFG = [
     {k:'firma_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
     {k:'firma_obs',l:'Observaciones Firma',t:'textarea'},
   ]},
-  {key:'doc',label:'⑥ Documentos de Implementación',cls:'stg-5',fields:[
+  {key:'doc',label:'⑦ Documentos de Implementación',cls:'stg-5',fields:[
     {k:'doc_acta',l:'Acta de entrega',t:'text'},
     {k:'doc_informe',l:'Informe operativo',t:'text'},
     {k:'doc_fotos',l:'Registros fotográficos',t:'text'},
@@ -1604,7 +1604,7 @@ function openModal(idx, ev){
   const juridicaBlock = `
     <div class="stg" style="border-left:4px solid #16A085;">
       <div class="stg-h" style="background:rgba(22,160,133,.12);color:#117A65;" onclick="toggleStg(this)">
-        <span>⚖️ Revisión Jurídica</span>
+        <span>⑤ ⚖️ Revisión Jurídica</span>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:10px;opacity:.8;text-align:right;" id="juridicaSummary">Cargando…</span>
           <span>▼</span>
@@ -1620,7 +1620,23 @@ function openModal(idx, ev){
   // Insertar Revisión Jurídica entre Radicación (idx 3) y Firma (idx 4)
   const beforeJuridica = STAGES_CFG.slice(0,4).map(renderStageBlock).join('');
   const afterJuridica = STAGES_CFG.slice(4).map(renderStageBlock).join('');
-  html += beforeJuridica + juridicaBlock + afterJuridica;
+
+  // Placeholder: Cursos sujeto (al final, sin contenido por ahora)
+  const cursosBlock = `
+    <div class="stg" style="border-left:4px solid #8E44AD;">
+      <div class="stg-h" style="background:rgba(142,68,173,.12);color:#7D3C98;" onclick="toggleStg(this)">
+        <span>⑧ 🎓 Cursos sujeto</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:10px;opacity:.8;text-align:right;">Próximamente</span>
+          <span>▼</span>
+        </div>
+      </div>
+      <div class="stg-b">
+        <div class="fg full" style="color:var(--tx2);font-size:12px;">Sección en desarrollo — sin campos configurados aún.</div>
+      </div>
+    </div>`;
+
+  html += beforeJuridica + juridicaBlock + afterJuridica + cursosBlock;
 
   document.getElementById('mBody').innerHTML = html;
   document.getElementById('overlay').classList.add('open');
