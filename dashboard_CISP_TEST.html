@@ -139,6 +139,11 @@ tbody td{padding:8px 10px;vertical-align:middle}
 /* INFO GRID */
 .info-g{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--s2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px}
 .ig-l{color:var(--tx2)}.ig-v{color:var(--tx);font-weight:500}
+.info-more{background:var(--s2);border-radius:0 0 8px 8px;padding:0 12px 12px;margin:0 0 12px;font-size:12px}
+.info-more summary{cursor:pointer;font-size:12px;color:var(--ac);list-style:none;display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid var(--bd);margin-top:0;user-select:none}
+.info-more summary::-webkit-details-marker{display:none}
+.info-more[open] summary .imc{transform:rotate(180deg)}
+.info-more .ig{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 /* LEGEND */
 .legend{display:flex;gap:14px;flex-wrap:wrap;padding:10px 14px;background:var(--s2);border-radius:8px;margin-bottom:12px}
 .li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--tx2)}
@@ -282,8 +287,10 @@ tbody td{padding:8px 10px;vertical-align:middle}
               <th style="text-align:center;min-width:70px;color:#7D3C98;">② Contact.</th>
               <th style="text-align:center;min-width:70px;color:#117A65;">③ Validación</th>
               <th style="text-align:center;min-width:70px;color:#B9540A;">④ Radicac.</th>
-              <th style="text-align:center;min-width:70px;color:#C0392B;">⑤ Firma</th>
-              <th style="text-align:center;min-width:70px;color:#1E8449;">⑥ Docs Impl.</th>
+              <th style="text-align:center;min-width:70px;color:#117A65;">⑤ Rev. Jur.</th>
+              <th style="text-align:center;min-width:70px;color:#C0392B;">⑥ Firma</th>
+              <th style="text-align:center;min-width:70px;color:#1E8449;">⑦ Docs Impl.</th>
+              <th style="text-align:center;min-width:70px;color:#7D3C98;">⑧ Cursos</th>
               <th class="sortable" onclick="toggleSort('buscar','_prog',getRecVal,renderTable)">Avance <span id="si_buscar__prog"></span></th>
             </tr>
           </thead>
@@ -335,8 +342,8 @@ tbody td{padding:8px 10px;vertical-align:middle}
           <option value="1">② Contactabilidad</option>
           <option value="2">③ Validación</option>
           <option value="3">④ Radicación</option>
-          <option value="4">⑤ Firma</option>
-          <option value="5">⑥ Docs Impl.</option>
+          <option value="4">⑥ Firma</option>
+          <option value="5">⑦ Docs Impl.</option>
         </select>
         <button class="btn btn-sec btn-sm" onclick="clearAlertFilters()">✕ Limpiar</button>
       </div>
@@ -705,6 +712,21 @@ function showLoader(show, msg) {
 const SK = 'cisp_v2_edits';
 const DAYS_LIMIT = 8;
 
+// Las 8 etapas mostradas en tablas/gráficas. autoIdx referencia el índice usado por
+// autoEstado/autoFecha/autoKobo (0-5, las 6 etapas con seguimiento real).
+// Las etapas sin autoIdx (Revisión Jurídica y Cursos sujeto) se muestran como
+// placeholder en gris hasta que tengan su propio sistema de seguimiento.
+const STAGE_DISPLAY = [
+  {num:'①', short:'Diagnóst.',  full:'Diagnóstico',        autoIdx:0,    color:'#2471A3'},
+  {num:'②', short:'Contact.',   full:'Contactabilidad',    autoIdx:1,    color:'#7D3C98'},
+  {num:'③', short:'Validación', full:'Validación',         autoIdx:2,    color:'#117A65'},
+  {num:'④', short:'Radicac.',   full:'Radicación',         autoIdx:3,    color:'#B9540A'},
+  {num:'⑤', short:'Rev. Jur.',  full:'Revisión Jurídica',  autoIdx:null, color:'#117A65'},
+  {num:'⑥', short:'Firma',      full:'Firma',              autoIdx:4,    color:'#C0392B'},
+  {num:'⑦', short:'Docs Impl.', full:'Docs Impl.',         autoIdx:5,    color:'#1E8449'},
+  {num:'⑧', short:'Cursos',     full:'Cursos sujeto',      autoIdx:null, color:'#7D3C98'},
+];
+
 // Solo estos 2 campos viven en localStorage (no existen en el Sheet)
 const LOCAL_ONLY_FIELDS = ['suspension_fecha','reactivacion_fecha'];
 
@@ -913,6 +935,47 @@ function smLabel(color,est,days){
   return labels[color]||'';
 }
 
+// Renderiza una celda de semáforo para una etapa de STAGE_DISPLAY (real o placeholder)
+function renderStageCell(rec, stageDef, openOnClick){
+  if(stageDef.autoIdx === null){
+    // Placeholder: Revisión Jurídica / Cursos sujeto — aún sin sistema de estado propio
+    const click = openOnClick ? `onclick="openModal(${rec._i},event)"` : '';
+    return `<td class="sm-wrap">
+      <div class="sm sm-gy" title="${stageDef.full}: próximamente" ${click} style="opacity:.5;">—</div>
+    </td>`;
+  }
+  const s = stageDef.autoIdx;
+  const color = smColor(rec,s);
+  const est = autoEstado(rec,s);
+  const kobo = autoKobo(rec,s);
+  const fecha = autoFecha(rec,s);
+  const days = getDaysSince(fecha);
+  const label = smLabel(color,est,days);
+  const koboC = !kobo?'na':hasSi(kobo)?'ok':'no';
+  const venc = color==='rd'&&days&&days>DAYS_LIMIT;
+  const click = openOnClick ? `onclick="openModal(${rec._i},event)"` : '';
+  return `<td class="sm-wrap">
+    <div class="sm sm-${color}" title="${label}" ${click}>${smIcon(color)}</div>
+    ${hasVal(autoEstado(rec,s))?`<div class="kobo-d ko-${koboC}"></div>`:''}
+    ${venc?`<div class="venc">⏱${days}d</div>`:''}
+  </td>`;
+}
+
+// Cuenta registros por estado para una etapa de STAGE_DISPLAY (placeholder = todos "sin iniciar")
+function stageStatusCounts(data, stageDef){
+  if(stageDef.autoIdx === null){
+    return {completado:0, enProceso:0, pendiente:0, sinIniciar:data.length};
+  }
+  const s = stageDef.autoIdx;
+  return {
+    completado: data.filter(r=>autoEstado(r,s).toLowerCase()==='completado').length,
+    enProceso:  data.filter(r=>autoEstado(r,s).toLowerCase()==='en proceso').length,
+    pendiente:  data.filter(r=>autoEstado(r,s).toLowerCase()==='pendiente').length,
+    sinIniciar: data.filter(r=>autoEstado(r,s)==='').length,
+  };
+}
+
+
 // ══════════════════════════════════════════════════════
 // PROGRESS CALCULATION
 // ══════════════════════════════════════════════════════
@@ -1056,21 +1119,7 @@ function renderTable(){
     const sus = isSuspended(rec);
     const susTag = sus ? `<span class="badge b-sus">⏸ SUS</span>` : '';
 
-    const stages = [0,1,2,3,4,5].map(s=>{
-      const color = smColor(rec,s);
-      const est = autoEstado(rec,s);
-      const kobo = autoKobo(rec,s);
-      const fecha = autoFecha(rec,s);
-      const days = getDaysSince(fecha);
-      const label = smLabel(color,est,days);
-      const koboC = !kobo?'na':hasSi(kobo)?'ok':'no';
-      const venc = color==='rd'&&days&&days>DAYS_LIMIT;
-      return `<td class="sm-wrap">
-        <div class="sm sm-${color}" title="${label}" onclick="openModal(${rec._i},event)">${smIcon(color)}</div>
-        ${hasVal(autoEstado(rec,s))?`<div class="kobo-d ko-${koboC}"></div>`:''}
-        ${venc?`<div class="venc">⏱${days}d</div>`:''}
-      </td>`;
-    }).join('');
+    const stages = STAGE_DISPLAY.map(stageDef => renderStageCell(rec, stageDef, true)).join('');
 
     const prog = calcProg(rec);
     const pColor = prog===100?'var(--ok)':prog>0?'var(--yn)':'var(--gy)';
@@ -1131,20 +1180,13 @@ function renderCharts(){
   const eCols = {'Aprobada':'#27AE60','En implementación':'#2980B9','En gestión':'#F39C12','Rehabilitación':'#9B59B6','Sin estado':'#4A6A85','Suspendida':'#7F8C8D'};
   mkChart('cEstado','doughnut',Object.keys(byE),Object.values(byE),Object.keys(byE).map(k=>eCols[k]||'#4A6A85'));
 
-  // Etapas stacked
-  const stgLabels=['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs Impl.'];
+  // Etapas stacked (8 etapas, incluye placeholders Rev. Jurídica y Cursos sujeto)
+  const stgLabels = STAGE_DISPLAY.map(sd=>sd.num+' '+sd.full);
   const stgComp=[], stgProc=[], stgPend=[], stgGy=[];
-  for(let s=0;s<6;s++){
-    let comp=0,proc=0,pend=0,gy=0;
-    d.forEach(r=>{
-      const e = autoEstado(r,s).toLowerCase();
-      if(e==='completado') comp++;
-      else if(e==='en proceso') proc++;
-      else if(e==='pendiente') pend++;
-      else gy++;
-    });
-    stgComp.push(comp);stgProc.push(proc);stgPend.push(pend);stgGy.push(gy);
-  }
+  STAGE_DISPLAY.forEach(stageDef=>{
+    const c = stageStatusCounts(d, stageDef);
+    stgComp.push(c.completado); stgProc.push(c.enProceso); stgPend.push(c.pendiente); stgGy.push(c.sinIniciar);
+  });
   const ctx2 = document.getElementById('cEtapas')?.getContext('2d');
   if(ctx2){
     if(charts['cEtapas']) charts['cEtapas'].destroy();
@@ -1168,7 +1210,6 @@ function renderCharts(){
 // ══════════════════════════════════════════════════════
 function renderProf(){
   const profs = [...new Set(ALL.map(r=>r.responsable).filter(Boolean))].sort();
-  const stgColors = ['#2980B9','#8E44AD','#1ABC9C','#D35400','#E74C3C','#27AE60'];
   document.getElementById('profGrid').innerHTML = profs.map(p=>{
     const d = ALL.filter(r=>r.responsable===p);
     // Unique subjects (unique IDs)
@@ -1181,10 +1222,13 @@ function renderProf(){
     const alerts = d.filter(r=>!isSuspended(r)&&autoEstado(r,0)==='Pendiente').length;
     const oj = d.filter(r=>r.tipo==='Ordenes Judiciales').length;
     const ani = d.filter(r=>r.tipo==='Acciones no implementadas').length;
-    const segs = [0,1,2,3,4,5].map(s=>{
-      const cnt = d.filter(r=>autoEstado(r,s).toLowerCase()==='completado').length;
+    const segs = STAGE_DISPLAY.map(stageDef=>{
+      if(stageDef.autoIdx === null){
+        return `<div class="pp-seg" style="background:${stageDef.color};opacity:.15;flex:1;border-radius:3px;" title="${stageDef.full}: próximamente"></div>`;
+      }
+      const cnt = d.filter(r=>autoEstado(r,stageDef.autoIdx).toLowerCase()==='completado').length;
       const pct = d.length?cnt/d.length*100:0;
-      return `<div class="pp-seg" style="background:${stgColors[s]};opacity:${.3+pct/100*.7};flex:1;border-radius:3px;" title="${['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs'][s]}: ${cnt}/${d.length}"></div>`;
+      return `<div class="pp-seg" style="background:${stageDef.color};opacity:${.3+pct/100*.7};flex:1;border-radius:3px;" title="${stageDef.full}: ${cnt}/${d.length}"></div>`;
     }).join('');
     return `<div class="prof-card" onclick="selectProf('${p}',this)">
       <div class="prof-name">${p}</div>
@@ -1215,7 +1259,7 @@ function renderProf(){
       <div style="font-size:9px;color:var(--tx2);margin-bottom:4px;">Avance por etapa:</div>
       <div class="prof-pipeline" style="gap:3px;">${segs}</div>
       <div style="display:flex;justify-content:space-between;margin-top:4px;">
-        ${stgColors.map((c,i)=>`<div style="width:14px;height:4px;background:${c};border-radius:2px;opacity:.7;" title="${['①Diag','②Cont','③Val','④Rad','⑤Firma','⑥Docs'][i]}"></div>`).join('')}
+        ${STAGE_DISPLAY.map(sd=>`<div style="width:11px;height:4px;background:${sd.color};border-radius:2px;opacity:.7;" title="${sd.num}${sd.full}"></div>`).join('')}
       </div>
       <div style="margin-top:8px;font-size:10px;text-align:center;color:var(--tx2);">Clic para ver detalle ↓</div>
     </div>`;
@@ -1235,19 +1279,24 @@ function selectProf(p, el){
   const detTitle = document.getElementById('profDetailName');
   detTitle.innerHTML = `${p} &nbsp;<span style="font-size:12px;color:var(--tx2);font-weight:400;">${sujetos} sujetos · ${d.length} acciones</span>`;
 
-  const stgLabels=['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs Impl.'];
+  const stgLabels = STAGE_DISPLAY.map(sd=>sd.num+' '+sd.full);
   const ctx = document.getElementById('cProfDetail')?.getContext('2d');
   if(ctx){
     if(activeProfChart) activeProfChart.destroy();
+    const comp=[], proc=[], pend=[], gy=[];
+    STAGE_DISPLAY.forEach(stageDef=>{
+      const c = stageStatusCounts(d, stageDef);
+      comp.push(c.completado); proc.push(c.enProceso); pend.push(c.pendiente); gy.push(c.sinIniciar);
+    });
     activeProfChart = new Chart(ctx,{
       type:'bar',
       data:{
         labels:stgLabels,
         datasets:[
-          {label:'Completado', data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='completado').length), backgroundColor:'#27AE60',borderRadius:4},
-          {label:'En proceso', data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='en proceso').length), backgroundColor:'#F39C12',borderRadius:4},
-          {label:'Pendiente',  data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s).toLowerCase()==='pendiente').length),  backgroundColor:'#E74C3C',borderRadius:4},
-          {label:'Sin iniciar',data:stgLabels.map((_,s)=>d.filter(r=>autoEstado(r,s)==='').length), backgroundColor:'#4A6A85',borderRadius:4},
+          {label:'Completado', data:comp, backgroundColor:'#27AE60',borderRadius:4},
+          {label:'En proceso', data:proc, backgroundColor:'#F39C12',borderRadius:4},
+          {label:'Pendiente',  data:pend, backgroundColor:'#E74C3C',borderRadius:4},
+          {label:'Sin iniciar',data:gy,   backgroundColor:'#4A6A85',borderRadius:4},
         ]
       },
       options:{responsive:true,maintainAspectRatio:false,
@@ -1257,7 +1306,7 @@ function selectProf(p, el){
     });
   }
 
-  renderProfTable(d, stgLabels);
+  renderProfTable(d);
 
   // Scroll detail into view
   det.scrollIntoView({behavior:'smooth', block:'start'});
@@ -1270,9 +1319,7 @@ function getProfRowVal(rec, key){
   return rec[key];
 }
 
-function renderProfTable(d, stgLabels){
-  const stgColors=['#2471A3','#7D3C98','#117A65','#B9540A','#C0392B','#1E8449'];
-
+function renderProfTable(d){
   let data = d;
   const st = sortState.prof;
   if(st.col) data = sortArray(data, st.col, st.dir, getProfRowVal);
@@ -1288,7 +1335,7 @@ function renderProfTable(d, stgLabels){
             <th class="sortable" onclick="toggleSort('prof','nombre',getProfRowVal,refreshProfTable)" style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">SRC / Nombre ${sortIcon('nombre')}</th>
             <th class="sortable" onclick="toggleSort('prof','accion_id',getProfRowVal,refreshProfTable)" style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;">Cód. Acción ${sortIcon('accion_id')}</th>
             <th class="sortable" onclick="toggleSort('prof','tipo',getProfRowVal,refreshProfTable)" style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">Tipo ${sortIcon('tipo')}</th>
-            ${stgLabels.map((l,i)=>`<th style="padding:8px 6px;text-align:center;color:${stgColors[i]};font-size:10px;white-space:nowrap;">${['①','②','③','④','⑤','⑥'][i]} ${l}</th>`).join('')}
+            ${STAGE_DISPLAY.map(sd=>`<th style="padding:8px 6px;text-align:center;color:${sd.color};font-size:10px;white-space:nowrap;">${sd.num} ${sd.short}</th>`).join('')}
             <th class="sortable" onclick="toggleSort('prof','_prog',getProfRowVal,refreshProfTable)" style="padding:8px 10px;text-align:left;color:var(--tx2);font-size:10px;">Avance ${sortIcon('_prog')}</th>
           </tr>
         </thead>
@@ -1297,7 +1344,13 @@ function renderProfTable(d, stgLabels){
             const tipoBadge = rec.tipo==='Ordenes Judiciales'
               ? `<span style="background:rgba(41,128,185,.15);color:#2980B9;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;border:1px solid rgba(41,128,185,.3);">OJ</span>`
               : `<span style="background:rgba(142,68,173,.15);color:#8E44AD;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;border:1px solid rgba(142,68,173,.3);">ANI</span>`;
-            const stages = stgLabels.map((_,s)=>{
+            const stages = STAGE_DISPLAY.map(stageDef=>{
+              if(stageDef.autoIdx===null){
+                return `<td style="text-align:center;padding:6px;">
+                  <div class="sm sm-gy" style="width:22px;height:22px;font-size:10px;margin:0 auto;opacity:.5;" title="${stageDef.full}: próximamente" onclick="openModal(${rec._i},event)">—</div>
+                </td>`;
+              }
+              const s = stageDef.autoIdx;
               const color = smColor(rec,s);
               const label = smLabel(color, autoEstado(rec,s), null);
               return `<td style="text-align:center;padding:6px;">
@@ -1331,8 +1384,7 @@ function renderProfTable(d, stgLabels){
 function refreshProfTable(){
   if(!currentProfSelected) return;
   const d = ALL.filter(r=>r.responsable===currentProfSelected);
-  const stgLabels=['Diagnóstico','Contactabilidad','Validación','Radicación','Firma','Docs Impl.'];
-  renderProfTable(d, stgLabels);
+  renderProfTable(d);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1520,18 +1572,30 @@ function openModal(idx, ev){
   document.getElementById('mTitle').textContent = rec.nombre;
   document.getElementById('mSub').textContent = `${rec.tipo} · ${rec.responsable} · ${rec.zona} · Acción: ${rec.accion_id}`;
 
-  // Info grid
-  let html = `<div class="info-g">
+  // Info grid: ID y Caso/Nombre fijos, resto colapsable
+  let html = `<div class="info-g" style="grid-template-columns:1fr 1fr;margin-bottom:0;border-radius:8px 8px 0 0;">
     <div><span class="ig-l">ID:</span> <span class="ig-v">${rec.id}</span></div>
-    <div><span class="ig-l">Código Acción:</span> <span class="ig-v" style="color:var(--ac);font-weight:700;">${rec.accion_id}</span></div>
-    <div><span class="ig-l">Medida:</span> <span class="ig-v">${rec.medida||'—'}</span></div>
-    <div><span class="ig-l">Zona:</span> <span class="ig-v">${rec.zona} · ${rec.municipio}</span></div>
-    <div><span class="ig-l">Reunión:</span> <span class="ig-v">${rec.reunion_realizada||'—'} ${rec.fecha_reunion?'('+rec.fecha_reunion+')':''}</span></div>
-    <div><span class="ig-l">ACTA Reunión:</span> <span class="ig-v">${rec.doc_acta_reunion||'—'}</span></div>
-    <div><span class="ig-l">ACTA Concertación:</span> <span class="ig-v">${rec.doc_concertacion||'—'}</span></div>
-    <div><span class="ig-l">ACTA Implementación:</span> <span class="ig-v">${rec.doc_implementacion||'—'}</span></div>
-    <div class="fg full" style="grid-column:1/-1;"><span class="ig-l">Descripción:</span> <span class="ig-v">${rec.descripcion||'—'}</span></div>
-  </div>`;
+    <div><span class="ig-l">Caso / Nombre:</span> <span class="ig-v">${rec.nombre||'—'}</span></div>
+  </div>
+  <details class="info-more">
+    <summary><span class="imc" style="display:inline-flex;transition:transform .15s;"><i>▼</i></span> Ver más información</summary>
+    <div class="ig">
+      <div><span class="ig-l">Medida ID:</span> <span class="ig-v">${rec.medida_id||'—'}</span></div>
+      <div><span class="ig-l">Producto / Medida:</span> <span class="ig-v">${rec.medida||'—'}</span></div>
+      <div><span class="ig-l">Código Acción:</span> <span class="ig-v" style="color:var(--ac);font-weight:700;">${rec.accion_id}</span></div>
+      <div><span class="ig-l">Actividad / Acción:</span> <span class="ig-v">${rec.accion||'—'}</span></div>
+      <div><span class="ig-l">Tipo de caso:</span> <span class="ig-v">${rec.caso_tipo||'—'}</span></div>
+      <div><span class="ig-l">Zona:</span> <span class="ig-v">${rec.zona||'—'}</span></div>
+      <div><span class="ig-l">Departamento:</span> <span class="ig-v">${rec.departamento||'—'}</span></div>
+      <div><span class="ig-l">Municipio:</span> <span class="ig-v">${rec.municipio||'—'}</span></div>
+      <div><span class="ig-l">Reunión:</span> <span class="ig-v">${rec.reunion_realizada||'—'} ${rec.fecha_reunion?'('+rec.fecha_reunion+')':''}</span></div>
+      <div><span class="ig-l">ACTA Reunión:</span> <span class="ig-v">${rec.doc_acta_reunion||'—'}</span></div>
+      <div><span class="ig-l">Documento PIRC:</span> <span class="ig-v">${rec.doc_pirc||'—'}</span></div>
+      <div><span class="ig-l">Matriz cadena de valor:</span> <span class="ig-v">${rec.doc_cadena||'—'}</span></div>
+      <div><span class="ig-l">ACTA Concertación:</span> <span class="ig-v">${rec.doc_concertacion||'—'}</span></div>
+      <div><span class="ig-l">ACTA Implementación:</span> <span class="ig-v">${rec.doc_implementacion||'—'}</span></div>
+    </div>
+  </details>`;
 
   // Suspension block
   const sus = isSuspended(rec);
