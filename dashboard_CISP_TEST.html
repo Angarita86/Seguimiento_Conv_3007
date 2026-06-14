@@ -382,7 +382,7 @@ tbody td{padding:8px 10px;vertical-align:middle}
 <div class="toast" id="toast"></div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzaXu2_vUaMxWptMM5Fw7WZfWvNDNNkMcXjCQ4RbznviFa9p7zeiho43RN0iztk0A_q/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyywJMgHanBG6aM5ItvtF3aHW34jCsNsrxdHEorbHBXiQ3UT2NpagdCQcv5Shxocxis/exec';
 let RAW = [];
 
 function normalizeEstado(v) {
@@ -536,6 +536,8 @@ function rowsToRecords(headers, rows) {
 // LOAD FROM GOOGLE SHEETS (vía Apps Script — sin caché)
 // ══════════════════════════════════════════════════════
 let lastLoadTime = null;
+let CATALOGO_DOCS = [];   // [{ID_Doc, Nombre_Documento, Diagnóstico, ..., 'Revisión Jurídica':..., ...}]
+let CATALOGO_VERBOS = []; // [{ID_Verbo, Nombre_Verbo}]
 
 async function loadFromSheets() {
   showLoader(true, 'Conectando con Google Sheets…');
@@ -557,11 +559,94 @@ async function loadFromSheets() {
     renderCharts();
     showLoader(false);
     showToast(`✅ Datos cargados (en vivo) · ${RAW.length} registros`, 't-ok');
+
+    // Cargar catálogos en segundo plano (no bloquea la carga principal)
+    loadCatalogos();
   } catch(e) {
     showLoader(false);
     showErrorScreen(e.message);
   }
 }
+
+// ══════════════════════════════════════════════════════
+// CATÁLOGOS (Documentos / Verbos) — desde CISP_Config_Sistema
+// ══════════════════════════════════════════════════════
+async function loadCatalogos() {
+  try {
+    const url = SCRIPT_URL + '?action=catalogos&t=' + Date.now();
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    if (json.ok) {
+      CATALOGO_DOCS = json.documentos || [];
+      CATALOGO_VERBOS = json.verbos || [];
+    }
+  } catch(e) {
+    console.warn('No se pudo cargar catálogos:', e);
+  }
+}
+
+// Documentos del catálogo aplicables a una etapa (columna no vacía)
+function docsForEtapa(etapaNombre) {
+  return CATALOGO_DOCS.filter(d => String(d[etapaNombre]||'').trim() !== '');
+}
+
+// ══════════════════════════════════════════════════════
+// DOCUMENTOS_REGISTRO — CRUD por SRC/Acción
+// ══════════════════════════════════════════════════════
+async function fetchDocumentos(idSujeto, idAccion) {
+  try {
+    const url = SCRIPT_URL + '?action=documentos&id_sujeto=' + encodeURIComponent(idSujeto)
+              + '&id_accion=' + encodeURIComponent(idAccion) + '&t=' + Date.now();
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    return json.ok ? (json.registros||[]) : [];
+  } catch(e) {
+    console.warn('Error cargando documentos:', e);
+    return [];
+  }
+}
+
+async function saveDocumentoRegistro(payload) {
+  try {
+    const url = SCRIPT_URL + '?action=saveDoc&data=' + encodeURIComponent(JSON.stringify(payload));
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    return json;
+  } catch(e) {
+    return {ok:false, msg:e.message};
+  }
+}
+
+async function deleteDocumentoRegistro(idRegistro) {
+  try {
+    const url = SCRIPT_URL + '?action=deleteDoc&id_registro=' + encodeURIComponent(idRegistro) + '&t=' + Date.now();
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    return json;
+  } catch(e) {
+    return {ok:false, msg:e.message};
+  }
+}
+
+// Agregar un documento nuevo al catálogo (cuando el usuario escribe uno que no existe)
+async function addDocAlCatalogo(nombre, etapa, accion) {
+  try {
+    const payload = {nombre, etapa, accion};
+    const url = SCRIPT_URL + '?action=addCatalogoDoc&data=' + encodeURIComponent(JSON.stringify(payload));
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    if (json.ok) {
+      // Reflejar localmente sin esperar recarga completa
+      const newDoc = {ID_Doc: json.id_doc, Nombre_Documento: nombre};
+      newDoc[etapa] = accion || 'Genera';
+      CATALOGO_DOCS.push(newDoc);
+    }
+    return json;
+  } catch(e) {
+    return {ok:false, msg:e.message};
+  }
+}
+
 function showErrorScreen(msg) {
   const existing = document.getElementById('errorScreen');
   if (existing) {
@@ -1515,18 +1600,20 @@ function openModal(idx, ev){
     </div>`;
   }
 
-  // Placeholder: Revisión Jurídica (antes de Firma de Acuerdos, sin contenido por ahora)
+  // Revisión Jurídica: registro dinámico de documentos (catálogo + registro real)
   const juridicaBlock = `
     <div class="stg" style="border-left:4px solid #16A085;">
-      <div class="stg-h" style="background:rgba(22,160,133,.12);color:#48C9B0;" onclick="toggleStg(this)">
+      <div class="stg-h" style="background:rgba(22,160,133,.12);color:#117A65;" onclick="toggleStg(this)">
         <span>⚖️ Revisión Jurídica</span>
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:10px;opacity:.8;text-align:right;">Próximamente</span>
+          <span style="font-size:10px;opacity:.8;text-align:right;" id="juridicaSummary">Cargando…</span>
           <span>▼</span>
         </div>
       </div>
-      <div class="stg-b">
-        <div class="fg full" style="color:var(--tx2);font-size:12px;">Sección en desarrollo — sin campos configurados aún.</div>
+      <div class="stg-b" style="grid-template-columns:1fr;">
+        <div class="fg full">
+          <div id="docRegistryWrap" style="color:var(--tx2);font-size:12px;">Cargando documentos…</div>
+        </div>
       </div>
     </div>`;
 
@@ -1537,6 +1624,9 @@ function openModal(idx, ev){
 
   document.getElementById('mBody').innerHTML = html;
   document.getElementById('overlay').classList.add('open');
+
+  // Cargar registro de documentos (Revisión Jurídica) de forma asíncrona
+  renderDocRegistry(rec);
 }
 
 function toggleStg(el){
@@ -1545,6 +1635,201 @@ function toggleStg(el){
   body.style.display = isOpen ? 'none' : 'grid';
   body.classList.toggle('open', !isOpen);
 }
+
+// ══════════════════════════════════════════════════════
+// COMPONENTE: Registro de documentos (Revisión Jurídica)
+// ══════════════════════════════════════════════════════
+const ETAPA_JURIDICA = 'Revisión Jurídica';
+let docRegistryRows = []; // filas actualmente mostradas (incluye nuevas sin guardar)
+let docRegistryRec = null;
+
+const ESTADO_DOC_COLORS = {
+  '': 'gy', 'Pendiente':'rd', 'En proceso':'yn', 'Completado':'ok'
+};
+
+function estadoDocBadge(estado){
+  const color = ESTADO_DOC_COLORS[estado||''] || 'gy';
+  return `<span class="sm sm-${color}" style="width:20px;height:20px;font-size:10px;display:inline-flex;">${smIcon(color)}</span>`;
+}
+
+async function renderDocRegistry(rec){
+  docRegistryRec = rec;
+  const registros = await fetchDocumentos(rec.id, rec.accion_id);
+  docRegistryRows = registros.map(r=>({
+    id_registro: r.ID_Registro,
+    id_doc: r.ID_Doc,
+    nombre: r.Nombre_Documento,
+    fecha: r.Fecha_Registro,
+    estado: r.Estado || '',
+    observaciones: r.Observaciones || '',
+    isNew: false,
+  }));
+  drawDocRegistryTable();
+}
+
+function drawDocRegistryTable(){
+  const wrap = document.getElementById('docRegistryWrap');
+  if(!wrap) return;
+
+  // Resumen en el encabezado de la sección
+  const summary = document.getElementById('juridicaSummary');
+  if(summary){
+    if(docRegistryRows.length===0) summary.textContent = 'Sin documentos';
+    else {
+      const completados = docRegistryRows.filter(r=>r.estado==='Completado').length;
+      summary.textContent = `${completados}/${docRegistryRows.length} completados`;
+    }
+  }
+
+  const docsCatalogo = docsForEtapa(ETAPA_JURIDICA);
+
+  const rowsHtml = docRegistryRows.map((row, i)=>{
+    const docOptions = docsCatalogo.map(d=>
+      `<option value="${d.ID_Doc}" data-nombre="${(d.Nombre_Documento||'').replace(/"/g,'&quot;')}" ${row.id_doc===d.ID_Doc?'selected':''}>${d.Nombre_Documento}</option>`
+    ).join('');
+    const isCustom = row.id_doc && !docsCatalogo.find(d=>d.ID_Doc===row.id_doc);
+    return `
+    <tr data-row="${i}">
+      <td style="padding:6px;min-width:220px;">
+        <select class="fc doc-select" onchange="onDocSelectChange(${i}, this)" style="font-size:12px;">
+          <option value="">— Seleccionar documento —</option>
+          ${docOptions}
+          ${isCustom?`<option value="${row.id_doc}" selected data-nombre="${row.nombre.replace(/"/g,'&quot;')}">${row.nombre}</option>`:''}
+          <option value="__new__">➕ Nuevo documento…</option>
+        </select>
+        <input type="text" class="fc doc-new-name" placeholder="Nombre del nuevo documento" value="${row.id_doc==='__new__'?(row.nombre||''):''}"
+          style="font-size:12px;margin-top:4px;display:${row.id_doc==='__new__'?'block':'none'};">
+      </td>
+      <td style="padding:6px;min-width:130px;">
+        <input type="date" class="fc doc-fecha" value="${row.fecha||''}" onchange="onDocFieldChange(${i},'fecha',this.value)" style="font-size:12px;">
+      </td>
+      <td style="padding:6px;min-width:140px;">
+        <select class="fc doc-estado" onchange="onDocFieldChange(${i},'estado',this.value)" style="font-size:12px;">
+          ${['','Pendiente','En proceso','Completado'].map(o=>`<option value="${o}" ${row.estado===o?'selected':''}>${o||'— Sin estado —'}</option>`).join('')}
+        </select>
+      </td>
+      <td style="padding:6px;text-align:center;">${estadoDocBadge(row.estado)}</td>
+      <td style="padding:6px;text-align:center;white-space:nowrap;">
+        ${row.isNew
+          ? `<button class="btn btn-ac btn-sm" onclick="saveDocRow(${i})">💾</button>`
+          : `<button class="btn btn-sec btn-sm" onclick="saveDocRow(${i})" title="Guardar cambios">💾</button>`
+        }
+        <button class="btn btn-sec btn-sm" onclick="removeDocRow(${i})" title="Eliminar" style="color:var(--rd);">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:var(--s2);">
+            <th style="padding:6px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;">Documento</th>
+            <th style="padding:6px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;">Fecha</th>
+            <th style="padding:6px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;">Estado</th>
+            <th style="padding:6px;text-align:center;color:var(--tx2);font-size:10px;text-transform:uppercase;"></th>
+            <th style="padding:6px;text-align:center;color:var(--tx2);font-size:10px;text-transform:uppercase;"></th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml || ''}</tbody>
+      </table>
+      ${docRegistryRows.length===0?'<div style="padding:10px;color:var(--tx2);font-size:12px;">No hay documentos registrados para esta acción.</div>':''}
+    </div>
+    <button class="btn btn-sec btn-sm" style="margin-top:10px;" onclick="addDocRow()">➕ Agregar documento</button>
+  `;
+}
+
+function onDocSelectChange(i, selectEl){
+  const val = selectEl.value;
+  const row = docRegistryRows[i];
+  const newNameInput = selectEl.parentElement.querySelector('.doc-new-name');
+  if(val === '__new__'){
+    row.id_doc = '__new__';
+    row.nombre = '';
+    newNameInput.style.display = 'block';
+    newNameInput.focus();
+  } else {
+    row.id_doc = val;
+    const opt = selectEl.options[selectEl.selectedIndex];
+    row.nombre = opt?.dataset?.nombre || '';
+    newNameInput.style.display = 'none';
+  }
+}
+
+function onDocFieldChange(i, field, value){
+  docRegistryRows[i][field] = value;
+}
+
+function addDocRow(){
+  docRegistryRows.push({id_registro:'', id_doc:'', nombre:'', fecha:'', estado:'', observaciones:'', isNew:true});
+  drawDocRegistryTable();
+}
+
+async function removeDocRow(i){
+  const row = docRegistryRows[i];
+  if(row.id_registro){
+    if(!confirm(`¿Eliminar el documento "${row.nombre}" del registro?`)) return;
+    const res = await deleteDocumentoRegistro(row.id_registro);
+    if(!res.ok){ showToast('⚠️ Error al eliminar: '+(res.msg||''),'t-er'); return; }
+    showToast('🗑️ Documento eliminado','t-ok');
+  }
+  docRegistryRows.splice(i,1);
+  drawDocRegistryTable();
+}
+
+async function saveDocRow(i){
+  const row = docRegistryRows[i];
+  const rec = docRegistryRec;
+
+  // Leer valores actuales desde el DOM (por si el usuario escribió nombre nuevo)
+  const tr = document.querySelector(`tr[data-row="${i}"]`);
+  const selectEl = tr.querySelector('.doc-select');
+  const newNameInput = tr.querySelector('.doc-new-name');
+  const fecha = tr.querySelector('.doc-fecha').value;
+  const estado = tr.querySelector('.doc-estado').value;
+
+  let idDoc = selectEl.value;
+  let nombre = row.nombre;
+
+  if(idDoc === '__new__'){
+    const nuevoNombre = newNameInput.value.trim();
+    if(!nuevoNombre){ showToast('⚠️ Escribe el nombre del nuevo documento','t-er'); return; }
+    // Crear en catálogo primero
+    const catRes = await addDocAlCatalogo(nuevoNombre, ETAPA_JURIDICA, '');
+    if(!catRes.ok){ showToast('⚠️ Error creando documento en catálogo','t-er'); return; }
+    idDoc = catRes.id_doc;
+    nombre = nuevoNombre;
+  } else if(!idDoc){
+    showToast('⚠️ Selecciona un documento','t-er'); return;
+  }
+
+  const payload = {
+    id_registro: row.id_registro || '',
+    ID_Sujeto: rec.id,
+    'ID_Acción': rec.accion_id,
+    Etapa: ETAPA_JURIDICA,
+    ID_Doc: idDoc,
+    Nombre_Documento: nombre,
+    Fecha_Registro: fecha,
+    Estado: estado,
+    Responsable: rec.responsable,
+    Observaciones: row.observaciones || '',
+  };
+
+  showToast('💾 Guardando documento…','t-ok');
+  const res = await saveDocumentoRegistro(payload);
+  if(!res.ok){ showToast('⚠️ Error al guardar: '+(res.msg||''),'t-er'); return; }
+
+  row.id_registro = res.id_registro;
+  row.id_doc = idDoc;
+  row.nombre = nombre;
+  row.fecha = fecha;
+  row.estado = estado;
+  row.isNew = false;
+  drawDocRegistryTable();
+  showToast('✅ Documento guardado','t-ok');
+}
+
 
 function closeModal(){document.getElementById('overlay').classList.remove('open');editIdx=null;}
 function closeIf(e){if(e.target===document.getElementById('overlay')) closeModal();}
