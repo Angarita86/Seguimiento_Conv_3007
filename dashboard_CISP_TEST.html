@@ -7,6 +7,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{--bg:#F4F6F9;--s1:#FFFFFF;--s2:#F1F5F9;--s3:#E2E8F0;--bd:#D6DEE8;--tx:#1E293B;--tx2:#64748B;--ac:#0891B2;--ac2:#0E7490;--ok:#27AE60;--yn:#E67E22;--rd:#E74C3C;--gy:#94A3B8;--or:#D35400;--oj:#2980B9;--ni:#8E44AD;--font:'Segoe UI',system-ui,sans-serif}
+[data-theme="dark"]{--bg:#0B1622;--s1:#152233;--s2:#1C2E44;--s3:#233550;--bd:#2A4060;--tx:#DDE8F5;--tx2:#7FA3BF;--ac:#00C8D4;--ac2:#008FA0;--ok:#27AE60;--yn:#F39C12;--rd:#E74C3C;--gy:#4A6A85;--or:#D35400;--oj:#2980B9;--ni:#8E44AD;}
+[data-theme="dark"] .topbar{background:linear-gradient(90deg,#0A1F35,#0D2B45);}
+[data-theme="dark"] .ext-btn.ext-nas{background:#1A3A5C!important;border-color:#2980B9!important;color:#7FB3D9!important;}
+[data-theme="dark"] .ext-btn.ext-kobo{background:#1A3A2A!important;border-color:#27AE60!important;color:#7FD9A0!important;}
+[data-theme="dark"] .ext-btn.ext-contact{background:#2A1A3A!important;border-color:#8E44AD!important;color:#C89FE0!important;}
+[data-theme="dark"] .ext-btn.ext-drive{background:#3A2A1A!important;border-color:#D35400!important;color:#F0B080!important;}
+[data-theme="dark"] .drive-tip{background:#0B1622;color:#F0B080;}
+[data-theme="dark"] #loadingScreen,[data-theme="dark"] #errorScreen{background:#0B1622!important;}
+[data-theme="dark"] #loaderMsg{color:#7FA3BF!important;}
+[data-theme="dark"] #loaderTitle{color:#DDE8F5!important;}
+[data-theme="dark"] #loaderBarTrack{background:#1C2E44!important;}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--tx);font-family:var(--font);height:100vh;display:flex;flex-direction:column;overflow:hidden}
 /* TOP BAR */
@@ -121,6 +132,9 @@ tbody td{padding:8px 10px;vertical-align:middle}
 .x-btn:hover{color:var(--tx)}
 /* STAGE FORMS */
 .stg{border:1px solid var(--bd);border-radius:9px;overflow:hidden;margin-bottom:10px}
+.stg.locked{opacity:.55}
+.stg.locked .stg-h{cursor:not-allowed}
+.stg-lock-msg{font-size:10px;color:var(--tx2);font-style:italic;}
 .stg-h{padding:10px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
 .stg-b{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;display:none}
 .stg-b.open{display:grid}
@@ -167,9 +181,9 @@ tbody td{padding:8px 10px;vertical-align:middle}
 <!-- LOADING SCREEN -->
 <div id="loadingScreen" style="position:fixed;inset:0;background:#F4F6F9;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
   <div style="width:48px;height:48px;background:#00C8D4;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#0B1622;animation:pulse 1.5s infinite;">C</div>
-  <div style="color:#1E293B;font-size:18px;font-weight:700;">Cargando datos...</div>
+  <div id="loaderTitle" style="color:#1E293B;font-size:18px;font-weight:700;">Cargando datos...</div>
   <div id="loaderMsg" style="color:#64748B;font-size:13px;">Conectando con Google Sheets</div>
-  <div style="width:200px;height:4px;background:#E2E8F0;border-radius:2px;overflow:hidden;">
+  <div id="loaderBarTrack" style="width:200px;height:4px;background:#E2E8F0;border-radius:2px;overflow:hidden;">
     <div style="height:100%;background:#00C8D4;border-radius:2px;animation:loading-bar 2s infinite;"></div>
   </div>
 </div>
@@ -191,15 +205,16 @@ tbody td{padding:8px 10px;vertical-align:middle}
   <div class="topbar-divider"></div>
   <!-- ENLACES EXTERNOS -->
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-    <a href="https://nascisp02.myqnapcloud.com:13443/cgi-bin/" target="_blank" class="ext-btn" style="background:#EAF2FA;border-color:#2980B9;color:#2471A3;">🗄 NAS</a>
-    <a href="https://eu.kobotoolbox.org/accounts/login/" target="_blank" class="ext-btn" style="background:#EAFAF1;border-color:#27AE60;color:#1E8449;">📋 KOBO</a>
-    <a href="https://documentos.app.cispcolombia.org/login" target="_blank" class="ext-btn" style="background:#F5EAFA;border-color:#8E44AD;color:#7D3C98;">📞 Contactabilidad</a>
+    <a href="https://nascisp02.myqnapcloud.com:13443/cgi-bin/" target="_blank" class="ext-btn ext-nas" style="background:#EAF2FA;border-color:#2980B9;color:#2471A3;">🗄 NAS</a>
+    <a href="https://eu.kobotoolbox.org/accounts/login/" target="_blank" class="ext-btn ext-kobo" style="background:#EAFAF1;border-color:#27AE60;color:#1E8449;">📋 KOBO</a>
+    <a href="https://documentos.app.cispcolombia.org/login" target="_blank" class="ext-btn ext-contact" style="background:#F5EAFA;border-color:#8E44AD;color:#7D3C98;">📞 Contactabilidad</a>
     <div style="position:relative;">
-      <a href="https://drive.google.com/drive/my-drive" target="_blank" class="ext-btn" style="background:#FBEEE6;border-color:#D35400;color:#B9540A;" title="⚠️ Abrir desde la cuenta reparacion.colectiva@cispcolombia.org">🗂 DRIVE ⚠️</a>
+      <a href="https://drive.google.com/drive/my-drive" target="_blank" class="ext-btn ext-drive" style="background:#FBEEE6;border-color:#D35400;color:#B9540A;" title="⚠️ Abrir desde la cuenta reparacion.colectiva@cispcolombia.org">🗂 DRIVE ⚠️</a>
       <div style="position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;color:#B9540A;background:#0B1622;padding:2px 5px;border-radius:3px;pointer-events:none;opacity:0;transition:opacity .2s;" class="drive-tip">Usar cuenta reparacion.colectiva</div>
     </div>
   </div>
   <div class="topbar-right">
+    <button class="btn btn-sec btn-sm" id="themeToggleBtn" onclick="toggleTheme()" title="Cambiar tema claro/oscuro">🌙 Oscuro</button>
     <span class="topbar-badge" id="filtBadge">156 registros</span>
     <span id="lastLoadBadge" style="font-size:11px;color:var(--tx2);cursor:pointer;" onclick="loadFromSheets()" title="Haz clic para actualizar">🔄 --:--</span>
     <button class="btn btn-sec btn-sm" onclick="loadFromSheets()" title="Actualizar desde Google Sheets">⟳ Actualizar</button>
@@ -247,8 +262,9 @@ tbody td{padding:8px 10px;vertical-align:middle}
           <option value="1">2. Contactabilidad</option>
           <option value="2">3. Validación</option>
           <option value="3">4. Radicación</option>
-          <option value="4">5. Firma</option>
-          <option value="5">6. Docs Impl.</option>
+          <option value="rj">5. Revisión Jurídica</option>
+          <option value="4">6. Firma</option>
+          <option value="5">7. Docs Impl.</option>
         </select>
         <div style="position:relative;">
           <input type="text" id="fSearch" placeholder="🔍 Buscar SRC, municipio..." oninput="doFilter()" style="min-width:220px;">
@@ -545,6 +561,7 @@ function rowsToRecords(headers, rows) {
 let lastLoadTime = null;
 let CATALOGO_DOCS = [];   // [{ID_Doc, Nombre_Documento, Diagnóstico, ..., 'Revisión Jurídica':..., ...}]
 let CATALOGO_VERBOS = []; // [{ID_Verbo, Nombre_Verbo}]
+let ALL_DOCUMENTOS = [];  // TODOS los registros de Documentos_Registro (todas las etapas/sujetos)
 
 async function loadFromSheets() {
   showLoader(true, 'Conectando con Google Sheets…');
@@ -567,8 +584,9 @@ async function loadFromSheets() {
     showLoader(false);
     showToast(`✅ Datos cargados (en vivo) · ${RAW.length} registros`, 't-ok');
 
-    // Cargar catálogos en segundo plano (no bloquea la carga principal)
+    // Cargar catálogos y documentos en segundo plano (no bloquea la carga principal)
     loadCatalogos();
+    loadAllDocumentos();
   } catch(e) {
     showLoader(false);
     showErrorScreen(e.message);
@@ -590,6 +608,56 @@ async function loadCatalogos() {
   } catch(e) {
     console.warn('No se pudo cargar catálogos:', e);
   }
+}
+
+// Carga TODOS los documentos registrados (todas las etapas/sujetos), usado para
+// filtros, semáforos y bloqueo secuencial de etapas.
+async function loadAllDocumentos() {
+  try {
+    const url = SCRIPT_URL + '?action=allDocumentos&t=' + Date.now();
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    if (json.ok) ALL_DOCUMENTOS = json.registros || [];
+  } catch(e) {
+    console.warn('No se pudo cargar documentos registrados:', e);
+  }
+}
+
+// Documentos registrados para un sujeto/acción/etapa específicos (desde la caché global)
+function docsForRecEtapa(rec, etapaNombre) {
+  return ALL_DOCUMENTOS.filter(d =>
+    String(d.ID_Sujeto).trim() === String(rec.id).trim() &&
+    String(d['ID_Acción']).trim() === String(rec.accion_id).trim() &&
+    d.Etapa === etapaNombre
+  );
+}
+
+// ¿El sujeto tiene al menos un documento Aprobado/Completado en una etapa dada?
+function hasApprovedDoc(rec, etapaNombre) {
+  return docsForRecEtapa(rec, etapaNombre).some(d => d.Estado==='Aprobado' || d.Estado==='Completado');
+}
+
+// Calcula qué etapas están bloqueadas para un registro, según la secuencia:
+// ①Diagnóstico→②Contactabilidad→③Validación→④Radicación→⑤Rev.Jurídica→⑥Firma→⑦DocsImpl→⑧Cursos
+// ⑥Firma requiere que TODOS los documentos de ⑤ estén Aprobado/Completado (y que haya al menos uno).
+function computeStageLocks(rec){
+  const started = (autoIdx) => {
+    const est = autoEstado(rec, autoIdx);
+    return !!est && est.toLowerCase() !== 'pendiente';
+  };
+  const rjDocs = docsForRecEtapa(rec, 'Revisión Jurídica');
+  const rjAllApproved = rjDocs.length > 0 && rjDocs.every(d => d.Estado==='Aprobado' || d.Estado==='Completado');
+
+  return {
+    diag: false,
+    cont: !started(0),
+    val:  !started(1),
+    rad:  !started(2),
+    rj:   !started(3),
+    firma: !rjAllApproved,
+    doc:  !started(4),
+    cursos: !started(4), // se desbloquea junto con ⑦, no depende de su propio avance
+  };
 }
 
 // Documentos del catálogo aplicables a una etapa (columna no vacía)
@@ -716,6 +784,14 @@ const DAYS_LIMIT = 8;
 // autoEstado/autoFecha/autoKobo (0-5, las 6 etapas con seguimiento real).
 // Las etapas sin autoIdx (Revisión Jurídica y Cursos sujeto) se muestran como
 // placeholder en gris hasta que tengan su propio sistema de seguimiento.
+// Colores de gráficas según el tema activo (claro/oscuro)
+function chartColors(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return dark
+    ? {color:'rgba(221,232,245,.85)', grid:'rgba(42,64,96,.4)'}
+    : {color:'rgba(30,41,59,.85)',    grid:'rgba(148,163,184,.3)'};
+}
+
 const STAGE_DISPLAY = [
   {num:'①', short:'Diagnóst.',  full:'Diagnóstico',        autoIdx:0,    color:'#2471A3'},
   {num:'②', short:'Contact.',   full:'Contactabilidad',    autoIdx:1,    color:'#7D3C98'},
@@ -1036,9 +1112,13 @@ function doFilter(){
     if(fResp && r.responsable!==fResp) return false;
     if(fZona && r.zona!==fZona) return false;
     if(fEtapa!==''){
-      const s = parseInt(fEtapa);
-      const est = autoEstado(r,s);
-      if(!est) return false;
+      if(fEtapa==='rj'){
+        if(!hasApprovedDoc(r,'Revisión Jurídica')) return false;
+      } else {
+        const s = parseInt(fEtapa);
+        const est = autoEstado(r,s);
+        if(!est) return false;
+      }
     }
     if(fSearch){
       const hay = (r.nombre+r.responsable+r.municipio+r.departamento+r.accion_id+r.id).toLowerCase();
@@ -1154,7 +1234,7 @@ function mkChart(id,type,labels,data,colors,stacked){
   const ctx = document.getElementById(id)?.getContext('2d');
   if(!ctx) return;
   if(charts[id]) charts[id].destroy();
-  const isDark = {color:'rgba(30,41,59,.85)',grid:'rgba(148,163,184,.3)'};
+  const isDark = chartColors();
   charts[id] = new Chart(ctx,{
     type,
     data:{labels,datasets:[{data,backgroundColor:colors,borderColor:type==='bar'?'transparent':colors,borderWidth:type==='doughnut'?2:0,borderRadius:type==='bar'?5:0}]},
@@ -1199,8 +1279,8 @@ function renderCharts(){
         {label:'Sin iniciar',data:stgGy,backgroundColor:'#4A6A85',borderRadius:4},
       ]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{labels:{color:'rgba(30,41,59,.85)',font:{size:10},boxWidth:10}}},
-        scales:{x:{stacked:true,ticks:{color:'rgba(30,41,59,.8)',font:{size:10}},grid:{color:'rgba(148,163,184,.3)'}},y:{stacked:true,ticks:{color:'rgba(30,41,59,.8)',font:{size:10}},grid:{color:'rgba(148,163,184,.3)'},beginAtZero:true}}}
+        plugins:{legend:{labels:{color:chartColors().color,font:{size:10},boxWidth:10}}},
+        scales:{x:{stacked:true,ticks:{color:chartColors().color,font:{size:10}},grid:{color:chartColors().grid}},y:{stacked:true,ticks:{color:chartColors().color,font:{size:10}},grid:{color:chartColors().grid},beginAtZero:true}}}
     });
   }
 }
@@ -1300,9 +1380,9 @@ function selectProf(p, el){
         ]
       },
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{labels:{color:'rgba(30,41,59,.85)',font:{size:10},boxWidth:10}}},
-        scales:{x:{stacked:true,ticks:{color:'rgba(30,41,59,.8)',font:{size:9}},grid:{color:'rgba(148,163,184,.3)'}},
-                y:{stacked:true,ticks:{color:'rgba(30,41,59,.8)',font:{size:9}},grid:{color:'rgba(148,163,184,.3)'},beginAtZero:true}}}
+        plugins:{legend:{labels:{color:chartColors().color,font:{size:10},boxWidth:10}}},
+        scales:{x:{stacked:true,ticks:{color:chartColors().color,font:{size:9}},grid:{color:chartColors().grid}},
+                y:{stacked:true,ticks:{color:chartColors().color,font:{size:9}},grid:{color:chartColors().grid},beginAtZero:true}}}
     });
   }
 
@@ -1636,15 +1716,25 @@ function openModal(idx, ev){
   }
   if(stgAlerts.length) html += `<div class="abox">⚠️ <strong>Alertas de tiempo:</strong> ${stgAlerts.join(' · ')}</div>`;
 
+  // Calcular bloqueo secuencial de etapas para este registro
+  const locks = computeStageLocks(rec);
+  const lockMsg = {
+    cont:'Complete primero Diagnóstico', val:'Complete primero Contactabilidad',
+    rad:'Complete primero Validación', rj:'Complete primero Radicación',
+    firma:'Apruebe/complete todos los documentos de Revisión Jurídica',
+    doc:'Complete primero Firma de Acuerdos', cursos:'Se habilita junto con Docs Implementación',
+  };
+
   // Stage forms
   function renderStageBlock(stg){
     const idx = STAGES_CFG.indexOf(stg);
+    const isLocked = locks[stg.key];
     return `
-    <div class="stg ${stg.cls}">
+    <div class="stg ${stg.cls}${isLocked?' locked':''}">
       <div class="stg-h" onclick="toggleStg(this)">
-        <span>${stg.label}</span>
+        <span>${stg.label}${isLocked?' 🔒':''}</span>
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:10px;opacity:.8;text-align:right;">${smLabel(smColor(rec,idx),autoEstado(rec,idx),null)}</span>
+          <span style="font-size:10px;opacity:.8;text-align:right;">${isLocked?`<span class="stg-lock-msg">${lockMsg[stg.key]||''}</span>`:smLabel(smColor(rec,idx),autoEstado(rec,idx),null)}</span>
           <span>▼</span>
         </div>
       </div>
@@ -1665,12 +1755,13 @@ function openModal(idx, ev){
   }
 
   // Revisión Jurídica: registro dinámico de documentos (catálogo + registro real)
+  const rjLocked = locks.rj;
   const juridicaBlock = `
-    <div class="stg" style="border-left:4px solid #16A085;">
+    <div class="stg${rjLocked?' locked':''}" style="border-left:4px solid #16A085;">
       <div class="stg-h" style="background:rgba(22,160,133,.12);color:#117A65;" onclick="toggleStg(this)">
-        <span>⑤ ⚖️ Revisión Jurídica</span>
+        <span>⑤ ⚖️ Revisión Jurídica${rjLocked?' 🔒':''}</span>
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:10px;opacity:.8;text-align:right;" id="juridicaSummary">Cargando…</span>
+          <span style="font-size:10px;opacity:.8;text-align:right;">${rjLocked?`<span class="stg-lock-msg">${lockMsg.rj}</span>`:`<span id="juridicaSummary">Cargando…</span>`}</span>
           <span>▼</span>
         </div>
       </div>
@@ -1685,13 +1776,14 @@ function openModal(idx, ev){
   const beforeJuridica = STAGES_CFG.slice(0,4).map(renderStageBlock).join('');
   const afterJuridica = STAGES_CFG.slice(4).map(renderStageBlock).join('');
 
-  // Placeholder: Cursos sujeto (al final, sin contenido por ahora)
+  // Cursos sujeto (al final, sin contenido por ahora — se desbloquea junto con Docs Implementación)
+  const cursosLocked = locks.cursos;
   const cursosBlock = `
-    <div class="stg" style="border-left:4px solid #8E44AD;">
+    <div class="stg${cursosLocked?' locked':''}" style="border-left:4px solid #8E44AD;">
       <div class="stg-h" style="background:rgba(142,68,173,.12);color:#7D3C98;" onclick="toggleStg(this)">
-        <span>⑧ 🎓 Cursos sujeto</span>
+        <span>⑧ 🎓 Cursos sujeto${cursosLocked?' 🔒':''}</span>
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:10px;opacity:.8;text-align:right;">Próximamente</span>
+          <span style="font-size:10px;opacity:.8;text-align:right;">${cursosLocked?`<span class="stg-lock-msg">${lockMsg.cursos}</span>`:'Próximamente'}</span>
           <span>▼</span>
         </div>
       </div>
@@ -1705,11 +1797,13 @@ function openModal(idx, ev){
   document.getElementById('mBody').innerHTML = html;
   document.getElementById('overlay').classList.add('open');
 
-  // Cargar registro de documentos (Revisión Jurídica) de forma asíncrona
-  renderDocRegistry(rec);
+  // Cargar registro de documentos (Revisión Jurídica) de forma asíncrona, solo si no está bloqueada
+  if(!rjLocked) renderDocRegistry(rec);
 }
 
 function toggleStg(el){
+  const stgEl = el.closest('.stg');
+  if(stgEl && stgEl.classList.contains('locked')) return;
   const body = el.nextElementSibling;
   const isOpen = body.classList.contains('open');
   body.style.display = isOpen ? 'none' : 'grid';
@@ -2006,7 +2100,41 @@ function showToast(msg,cls='t-ok'){
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 
+// ══════════════════════════════════════════════════════
+// TEMA CLARO / OSCURO
+// ══════════════════════════════════════════════════════
+const THEME_KEY = 'cisp_theme';
+
+function applyTheme(theme){
+  if(theme === 'dark'){
+    document.documentElement.setAttribute('data-theme','dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.innerHTML = theme==='dark' ? '☀️ Claro' : '🌙 Oscuro';
+}
+
+function toggleTheme(){
+  const current = document.documentElement.getAttribute('data-theme')==='dark' ? 'dark' : 'light';
+  const next = current==='dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+  // Refrescar vistas que dependen de colores fijados en JS (gráficas)
+  renderCharts();
+  if(typeof currentProfSelected!=='undefined' && currentProfSelected){
+    const el = document.querySelector('.prof-card.active');
+    selectProf(currentProfSelected, el);
+  }
+}
+
+function initTheme(){
+  const saved = localStorage.getItem(THEME_KEY) || 'light';
+  applyTheme(saved);
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
+  initTheme();
   clearStaleCache(); // Limpia localStorage obsoleto antes de cargar
   loadFromSheets();
 });
