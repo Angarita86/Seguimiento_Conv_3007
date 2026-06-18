@@ -645,8 +645,14 @@ function computeStageLocks(rec){
     const est = autoEstado(rec, autoIdx);
     return !!est && est.toLowerCase() !== 'pendiente';
   };
-  const rjDocs = docsForRecEtapa(rec, 'Revisión Jurídica');
-  const rjAllApproved = rjDocs.length > 0 && rjDocs.every(d => d.Estado==='Aprobado' || d.Estado==='Completado');
+  // ⑥ Firma se desbloquea cuando: todos los documentos RADICADOS (④) que llegaron
+  // a Revisión Jurídica están Aprobados, Y todos los documentos PROPIOS de
+  // Revisión Jurídica (⑤) están Completados. Debe existir al menos uno de los dos.
+  const radDocs = docsForRecEtapa(rec, 'Radicación');
+  const rjDocs  = docsForRecEtapa(rec, 'Revisión Jurídica');
+  const radAllAprobados = radDocs.every(d => d.Estado === 'Aprobado');
+  const rjAllCompletados = rjDocs.every(d => d.Estado === 'Completado');
+  const firmaDesbloqueada = (radDocs.length + rjDocs.length) > 0 && radAllAprobados && rjAllCompletados;
 
   return {
     diag: false,
@@ -654,7 +660,7 @@ function computeStageLocks(rec){
     val:  !started(1),
     rad:  !started(2),
     rj:   !started(3),
-    firma: !rjAllApproved,
+    firma: !firmaDesbloqueada,
     doc:  !started(4),
     cursos: !started(4), // se desbloquea junto con ⑦, no depende de su propio avance
   };
@@ -695,6 +701,19 @@ async function saveDocumentoRegistro(payload) {
 async function deleteDocumentoRegistro(idRegistro) {
   try {
     const url = SCRIPT_URL + '?action=deleteDoc&id_registro=' + encodeURIComponent(idRegistro) + '&t=' + Date.now();
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    return json;
+  } catch(e) {
+    return {ok:false, msg:e.message};
+  }
+}
+
+// Rechaza un documento (Estado='Rechazado'+motivo) y dispara el correo al Responsable
+async function rejectDocumentoRegistro(idRegistro, motivo) {
+  try {
+    const payload = {id_registro: idRegistro, motivo};
+    const url = SCRIPT_URL + '?action=rejectDoc&data=' + encodeURIComponent(JSON.stringify(payload));
     const res = await fetch(url, {mode:'cors'});
     const json = await res.json();
     return json;
@@ -1721,7 +1740,7 @@ function openModal(idx, ev){
   const lockMsg = {
     cont:'Complete primero Diagnóstico', val:'Complete primero Contactabilidad',
     rad:'Complete primero Validación', rj:'Complete primero Radicación',
-    firma:'Apruebe/complete todos los documentos de Revisión Jurídica',
+    firma:'Apruebe los documentos radicados y complete los de Revisión Jurídica',
     doc:'Complete primero Firma de Acuerdos', cursos:'Se habilita junto con Docs Implementación',
   };
 
@@ -1806,6 +1825,11 @@ function openModal(idx, ev){
       </div>
       <div class="stg-b" style="grid-template-columns:1fr;">
         <div class="fg full">
+          <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx2);">📥 Documentos radicados (para aprobar)</div>
+          <div id="radApprovalWrap" style="color:var(--tx2);font-size:12px;">Cargando…</div>
+        </div>
+        <div class="fg full" style="border-top:1px solid var(--bd);padding-top:10px;margin-top:10px;">
+          <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx2);">⚖️ Documentos propios de Revisión Jurídica</div>
           <div id="docRegistryWrap_rj" style="color:var(--tx2);font-size:12px;">Cargando documentos…</div>
         </div>
       </div>
@@ -1888,6 +1912,8 @@ function initDocPanel(etapaKey, etapaNombre, rec){
     })),
   };
   drawDocRegistryTable(etapaKey);
+  // Revisión Jurídica también muestra los documentos radicados pendientes de aprobación
+  if(etapaKey === 'rj') drawRadicacionApprovalSection(rec);
 }
 
 // Carga modalAllDocs una vez y luego inicializa todos los paneles que deben verse abiertos
@@ -1921,10 +1947,7 @@ function drawDocRegistryTable(etapaKey){
   }
 
   const docsCatalogo = docsForEtapa(state.etapaNombre);
-  const isRJ = state.etapaNombre === 'Revisión Jurídica';
-  const estadoOpts = isRJ
-    ? ['','Pendiente','En proceso','Aprobado','Rechazado','Completado']
-    : ['','Pendiente','En proceso','Completado'];
+  const estadoOpts = ['','Pendiente','En proceso','Completado'];
 
   const rowsHtml = state.rows.map((row, i)=>{
     const docOptions = docsCatalogo.map(d=>
@@ -1978,6 +2001,81 @@ function drawDocRegistryTable(etapaKey){
     <button class="btn btn-sec btn-sm" style="margin-top:10px;" onclick="addDocRow('${etapaKey}')">➕ Agregar documento</button>
   `;
 }
+
+// ══════════════════════════════════════════════════════
+// APROBACIÓN DE DOCUMENTOS RADICADOS (dentro de Revisión Jurídica)
+// Mismo registro de Documentos_Registro — no se duplica, solo cambia su Estado.
+// ══════════════════════════════════════════════════════
+function drawRadicacionApprovalSection(rec){
+  const wrap = document.getElementById('radApprovalWrap');
+  if(!wrap) return;
+  const radDocs = docsForEtapaLocal('Radicación');
+
+  if(radDocs.length === 0){
+    wrap.innerHTML = '<div style="padding:8px;color:var(--tx2);font-size:12px;">No hay documentos radicados pendientes de revisión.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:var(--s2);">
+          <th style="padding:6px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;">Documento</th>
+          <th style="padding:6px;text-align:left;color:var(--tx2);font-size:10px;text-transform:uppercase;">Fecha</th>
+          <th style="padding:6px;text-align:center;color:var(--tx2);font-size:10px;text-transform:uppercase;">Estado</th>
+          <th style="padding:6px;text-align:center;color:var(--tx2);font-size:10px;text-transform:uppercase;"></th>
+        </tr></thead>
+        <tbody>
+          ${radDocs.map(d=>{
+            const decidido = d.Estado==='Aprobado' || d.Estado==='Rechazado';
+            const safeNombre = (d.Nombre_Documento||'').replace(/'/g,"\\'");
+            const safeId = (d.ID_Registro||'').replace(/'/g,"\\'");
+            return `
+            <tr>
+              <td style="padding:6px;">${d.Nombre_Documento||'—'}</td>
+              <td style="padding:6px;">${d.Fecha_Registro||'—'}</td>
+              <td style="padding:6px;text-align:center;">${estadoDocBadge(d.Estado)} <span style="font-size:11px;">${d.Estado||'Sin estado'}</span></td>
+              <td style="padding:6px;text-align:center;white-space:nowrap;">
+                ${decidido
+                  ? `<span style="font-size:11px;color:var(--tx2);">${d.Estado==='Aprobado'?'✅ Ya aprobado':'❌ Ya rechazado'}</span>`
+                  : `<button class="btn btn-ac btn-sm" onclick="approveRadDoc('${safeId}')">✅ Aprobar</button>
+                     <button class="btn btn-sec btn-sm" style="color:var(--rd);" onclick="rejectRadDoc('${safeId}','${safeNombre}')">❌ Rechazar</button>`
+                }
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function approveRadDoc(idRegistro){
+  showToast('💾 Aprobando documento…','t-ok');
+  const res = await saveDocumentoRegistro({id_registro: idRegistro, Estado: 'Aprobado'});
+  if(!res.ok){ showToast('⚠️ Error: '+(res.msg||''),'t-er'); return; }
+  showToast('✅ Documento aprobado','t-ok');
+  const rec = ALL[editIdx];
+  await loadModalDocs(rec);
+  drawRadicacionApprovalSection(rec);
+  loadAllDocumentos();
+}
+
+async function rejectRadDoc(idRegistro, nombreDoc){
+  const motivo = prompt(`Motivo del rechazo para "${nombreDoc}" (obligatorio):`);
+  if(motivo === null) return; // cancelado
+  if(!motivo.trim()){ showToast('⚠️ Debes escribir un motivo para rechazar','t-er'); return; }
+
+  showToast('📨 Rechazando y notificando al responsable…','t-ok');
+  const res = await rejectDocumentoRegistro(idRegistro, motivo.trim());
+  if(!res.ok){ showToast('⚠️ Error: '+(res.msg||''),'t-er'); return; }
+  showToast(res.correo_enviado ? '❌ Rechazado · correo enviado al responsable' : '❌ Rechazado (no se encontró correo del responsable)', 't-ok');
+
+  const rec = ALL[editIdx];
+  await loadModalDocs(rec);
+  drawRadicacionApprovalSection(rec);
+  loadAllDocumentos();
+}
+
 
 function onDocSelectChange(etapaKey, i, selectEl){
   const val = selectEl.value;
