@@ -722,6 +722,19 @@ async function rejectDocumentoRegistro(idRegistro, motivo) {
   }
 }
 
+// Notifica al responsable que faltan documentos por radicar; fuerza Radicación a "En proceso"
+async function sendMissingDocsNotice(accionId, descripcion, responsable) {
+  try {
+    const payload = {accion_id: accionId, descripcion, responsable};
+    const url = SCRIPT_URL + '?action=missingDocs&data=' + encodeURIComponent(JSON.stringify(payload));
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    return json;
+  } catch(e) {
+    return {ok:false, msg:e.message};
+  }
+}
+
 // Agregar un documento nuevo al catálogo (cuando el usuario escribe uno que no existe)
 async function addDocAlCatalogo(nombre, etapa, accion) {
   try {
@@ -1825,7 +1838,10 @@ function openModal(idx, ev){
       </div>
       <div class="stg-b" style="grid-template-columns:1fr;">
         <div class="fg full">
-          <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx2);">📥 Documentos radicados (para aprobar)</div>
+          <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx2);display:flex;justify-content:space-between;align-items:center;">
+            <span>📥 Documentos radicados (para aprobar)</span>
+            <button class="btn btn-sec btn-sm" style="color:var(--or);border-color:var(--or);" onclick="openMissingDocsPrompt()">📨 Documentos faltantes</button>
+          </div>
           <div id="radApprovalWrap" style="color:var(--tx2);font-size:12px;">Cargando…</div>
         </div>
         <div class="fg full" style="border-top:1px solid var(--bd);padding-top:10px;margin-top:10px;">
@@ -2075,7 +2091,32 @@ async function rejectRadDoc(idRegistro, nombreDoc){
   const res = await rejectDocumentoRegistro(idRegistro, motivo.trim());
   if(!res.ok){ showToast('⚠️ Error: '+(res.msg||''),'t-er'); return; }
   showToast(res.correo_enviado ? '❌ Rechazado · correo enviado al responsable' : '❌ Rechazado (no se encontró correo del responsable)', 't-ok');
+  syncRadEstadoEnProceso();
   refreshAfterDocChange(ALL[editIdx]);
+}
+
+// Actualiza en pantalla (sin esperar recarga) el campo Estado de Radicación a "En proceso",
+// ya que tras un rechazo o una notificación de documentos faltantes esa etapa no puede
+// considerarse Completada.
+function syncRadEstadoEnProceso(){
+  const rec = ALL[editIdx];
+  if(rec) rec.rad_estado = 'En proceso';
+  const sel = document.getElementById('field_rad_estado');
+  if(sel) sel.value = 'En proceso';
+}
+
+// Notifica al responsable que faltan documentos por radicar (pide descripción obligatoria)
+async function openMissingDocsPrompt(){
+  const rec = ALL[editIdx];
+  const descripcion = prompt('Describe qué documentos hacen falta radicar (obligatorio):');
+  if(descripcion === null) return; // cancelado
+  if(!descripcion.trim()){ showToast('⚠️ Debes describir los documentos faltantes','t-er'); return; }
+
+  showToast('📨 Enviando notificación al responsable…','t-ok');
+  const res = await sendMissingDocsNotice(rec.accion_id, descripcion.trim(), rec.responsable);
+  if(!res.ok){ showToast('⚠️ Error: '+(res.msg||''),'t-er'); return; }
+  showToast(res.correo_enviado ? '📨 Notificación enviada al responsable' : '📨 Enviado (no se encontró correo del responsable)', 't-ok');
+  syncRadEstadoEnProceso();
 }
 
 
