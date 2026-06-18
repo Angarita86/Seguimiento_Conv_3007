@@ -1901,6 +1901,15 @@ function docsForEtapaLocal(etapaNombre){
   return modalAllDocs.filter(d => d.Etapa === etapaNombre);
 }
 
+// Se llama después de CUALQUIER cambio a un documento (guardar/eliminar/aprobar/rechazar),
+// sin importar en qué etapa ocurrió. Refresca tanto la caché del modal abierto (para que
+// Revisión Jurídica vea de inmediato lo que se radicó) como la caché global (para filtros/bloqueo).
+async function refreshAfterDocChange(rec){
+  await loadModalDocs(rec);
+  if(docRegistryState['rj']) drawRadicacionApprovalSection(rec);
+  loadAllDocumentos();
+}
+
 // Inicializa y dibuja el panel de documentos de una etapa específica
 function initDocPanel(etapaKey, etapaNombre, rec){
   const registros = docsForEtapaLocal(etapaNombre);
@@ -2054,10 +2063,7 @@ async function approveRadDoc(idRegistro){
   const res = await saveDocumentoRegistro({id_registro: idRegistro, Estado: 'Aprobado'});
   if(!res.ok){ showToast('⚠️ Error: '+(res.msg||''),'t-er'); return; }
   showToast('✅ Documento aprobado','t-ok');
-  const rec = ALL[editIdx];
-  await loadModalDocs(rec);
-  drawRadicacionApprovalSection(rec);
-  loadAllDocumentos();
+  refreshAfterDocChange(ALL[editIdx]);
 }
 
 async function rejectRadDoc(idRegistro, nombreDoc){
@@ -2069,11 +2075,7 @@ async function rejectRadDoc(idRegistro, nombreDoc){
   const res = await rejectDocumentoRegistro(idRegistro, motivo.trim());
   if(!res.ok){ showToast('⚠️ Error: '+(res.msg||''),'t-er'); return; }
   showToast(res.correo_enviado ? '❌ Rechazado · correo enviado al responsable' : '❌ Rechazado (no se encontró correo del responsable)', 't-ok');
-
-  const rec = ALL[editIdx];
-  await loadModalDocs(rec);
-  drawRadicacionApprovalSection(rec);
-  loadAllDocumentos();
+  refreshAfterDocChange(ALL[editIdx]);
 }
 
 
@@ -2110,7 +2112,7 @@ async function removeDocRow(etapaKey, i){
     const res = await deleteDocumentoRegistro(row.id_registro);
     if(!res.ok){ showToast('⚠️ Error al eliminar: '+(res.msg||''),'t-er'); return; }
     showToast('🗑️ Documento eliminado','t-ok');
-    loadAllDocumentos(); // refresca la caché global (afecta filtros/bloqueo en próxima apertura)
+    refreshAfterDocChange(docRegistryState[etapaKey].rec);
   }
   docRegistryState[etapaKey].rows.splice(i,1);
   drawDocRegistryTable(etapaKey);
@@ -2169,7 +2171,7 @@ async function saveDocRow(etapaKey, i){
   row.isNew = false;
   drawDocRegistryTable(etapaKey);
   showToast('✅ Documento guardado','t-ok');
-  loadAllDocumentos(); // refresca la caché global (afecta filtros/bloqueo en próxima apertura)
+  refreshAfterDocChange(rec);
 }
 
 
