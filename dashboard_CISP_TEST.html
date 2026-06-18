@@ -2090,7 +2090,8 @@ async function rejectRadDoc(idRegistro, nombreDoc){
   showToast('📨 Rechazando y notificando al responsable…','t-ok');
   const res = await rejectDocumentoRegistro(idRegistro, motivo.trim());
   if(!res.ok){ showToast('⚠️ Error: '+(res.msg||''),'t-er'); return; }
-  showToast(res.correo_enviado ? '❌ Rechazado · correo enviado al responsable' : '❌ Rechazado (no se encontró correo del responsable)', 't-ok');
+  showToast(res.correo_enviado ? '❌ Rechazado · correo enviado al responsable' :
+    (res.correo ? `❌ Rechazado (error al enviar correo: ${res.mail_error||'desconocido'})` : '❌ Rechazado (no se encontró correo del responsable en la hoja Usuarios)'), 't-ok');
   syncRadEstadoEnProceso();
   refreshAfterDocChange(ALL[editIdx]);
 }
@@ -2115,7 +2116,8 @@ async function openMissingDocsPrompt(){
   showToast('📨 Enviando notificación al responsable…','t-ok');
   const res = await sendMissingDocsNotice(rec.accion_id, descripcion.trim(), rec.responsable);
   if(!res.ok){ showToast('⚠️ Error: '+(res.msg||''),'t-er'); return; }
-  showToast(res.correo_enviado ? '📨 Notificación enviada al responsable' : '📨 Enviado (no se encontró correo del responsable)', 't-ok');
+  showToast(res.correo_enviado ? '📨 Notificación enviada al responsable' :
+    (res.correo ? `📨 Enviado a Sheets, pero falló el correo: ${res.mail_error||'desconocido'}` : '📨 Enviado (no se encontró correo del responsable en la hoja Usuarios)'), 't-ok');
   syncRadEstadoEnProceso();
 }
 
