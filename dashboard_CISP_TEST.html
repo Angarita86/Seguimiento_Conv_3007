@@ -1588,7 +1588,7 @@ function renderAlerts(){
 // MODAL
 // ══════════════════════════════════════════════════════
 const STAGES_CFG = [
-  {key:'diag',label:'① Diagnóstico',cls:'stg-0',fields:[
+  {key:'diag',label:'① Diagnóstico',cls:'stg-0',docEtapa:'Diagnóstico',docMode:'toggle',fields:[
     {k:'diag_val_docs',l:'Validación docs inicial',t:'text'},
     {k:'diag_cargue',l:'Cargue de información',t:'text'},
     {k:'diag_docs_pend',l:'Documentos pendientes',t:'text'},
@@ -1597,7 +1597,7 @@ const STAGES_CFG = [
     {k:'diag_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
     {k:'diag_obs',l:'Observaciones Diagnóstico',t:'textarea'},
   ]},
-  {key:'cont',label:'② Contactabilidad',cls:'stg-1',fields:[
+  {key:'cont',label:'② Contactabilidad',cls:'stg-1',docEtapa:'Contactabilidad',docMode:'toggle',fields:[
     {k:'cont_socializacion',l:'Socialización',t:'text'},
     {k:'cont_envio',l:'Envío de formatos',t:'text'},
     {k:'cont_recepcion',l:'Recepción de formatos',t:'text'},
@@ -1606,7 +1606,7 @@ const STAGES_CFG = [
     {k:'cont_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
     {k:'cont_obs',l:'Observaciones Contactabilidad',t:'textarea'},
   ]},
-  {key:'val',label:'③ Validación Formatos + Idoneidad',cls:'stg-2',fields:[
+  {key:'val',label:'③ Validación Formatos + Idoneidad',cls:'stg-2',docEtapa:'Validación Formatos',docMode:'toggle',fields:[
     {k:'val_revision',l:'Revisión documental',t:'text'},
     {k:'val_cotizaciones',l:'Cotizaciones',t:'text'},
     {k:'val_novedad',l:'Novedad',t:'text'},
@@ -1617,7 +1617,7 @@ const STAGES_CFG = [
     {k:'val_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
     {k:'val_obs',l:'Observaciones Validación',t:'textarea'},
   ]},
-  {key:'rad',label:'④ Radicación de Documentos',cls:'stg-3',fields:[
+  {key:'rad',label:'④ Radicación de Documentos',cls:'stg-3',docEtapa:'Radicación',docMode:'always',docTitle:'📄 Documentos radicados',fields:[
     {k:'rad_docs_drive',l:'Documentos en Drive',t:'text'},
     {k:'rad_notif',l:'Notificación coordinación',t:'text'},
     {k:'rad_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
@@ -1625,7 +1625,7 @@ const STAGES_CFG = [
     {k:'rad_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
     {k:'rad_obs',l:'Observaciones Radicación',t:'textarea'},
   ]},
-  {key:'firma',label:'⑥ Firma de Acuerdos',cls:'stg-4',fields:[
+  {key:'firma',label:'⑥ Firma de Acuerdos',cls:'stg-4',docEtapa:'Firma Acuerdos',docMode:'toggle',fields:[
     {k:'firma_correo',l:'Correo acuerdos corporativos',t:'text'},
     {k:'firma_profesional',l:'Profesional acompaña',t:'text'},
     {k:'firma_estado',l:'Estado etapa',t:'sel',opts:['','Pendiente','En proceso','Completado']},
@@ -1633,7 +1633,7 @@ const STAGES_CFG = [
     {k:'firma_kobo',l:'KOBO actualizado',t:'sel',opts:['','Sí','No','No aplica']},
     {k:'firma_obs',l:'Observaciones Firma',t:'textarea'},
   ]},
-  {key:'doc',label:'⑦ Documentos de Implementación',cls:'stg-5',fields:[
+  {key:'doc',label:'⑦ Documentos de Implementación',cls:'stg-5',docEtapa:'Docs Implementación',docMode:'toggle',fields:[
     {k:'doc_acta',l:'Acta de entrega',t:'text'},
     {k:'doc_informe',l:'Informe operativo',t:'text'},
     {k:'doc_fotos',l:'Registros fotográficos',t:'text'},
@@ -1725,6 +1725,43 @@ function openModal(idx, ev){
     doc:'Complete primero Firma de Acuerdos', cursos:'Se habilita junto con Docs Implementación',
   };
 
+  // Paneles de documentos a inicializar tras montar el HTML (siempre-activos o ya con datos)
+  const panelsToInit = [];
+
+  function renderDocPanelMarkup(stg, isLocked){
+    if(!stg.docEtapa) return '';
+    const etapaKey = stg.key;
+    const etapaNombre = stg.docEtapa;
+    const hasExisting = docsForRecEtapa(rec, etapaNombre).length > 0;
+    const alwaysOn = stg.docMode === 'always';
+    const startOpen = alwaysOn || hasExisting;
+    const title = stg.docTitle || ('📄 Documentos — '+etapaNombre);
+
+    if(startOpen && !isLocked) panelsToInit.push({key:etapaKey, etapaNombre});
+
+    if(alwaysOn){
+      return `
+      <div class="fg full" style="border-top:1px solid var(--bd);padding-top:10px;margin-top:4px;">
+        <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx2);display:flex;justify-content:space-between;">
+          <span>${title}</span><span id="docSummary_${etapaKey}" style="font-weight:400;font-size:11px;"></span>
+        </div>
+        <div id="docRegistryWrap_${etapaKey}" style="color:var(--tx2);font-size:12px;">Cargando documentos…</div>
+      </div>`;
+    }
+
+    const safeNombre = etapaNombre.replace(/'/g,"\\'");
+    return `
+    <div class="fg full" id="docToggleWrap_${etapaKey}" style="display:${startOpen?'none':'block'};border-top:1px solid var(--bd);padding-top:10px;margin-top:4px;">
+      <button class="btn btn-sec btn-sm" ${isLocked?'disabled':''} onclick="${isLocked?'':`activateDocPanel('${etapaKey}','${safeNombre}')`}">➕ Activar registro de documentos</button>
+    </div>
+    <div class="fg full" id="docPanelWrap_${etapaKey}" style="display:${startOpen?'block':'none'};border-top:1px solid var(--bd);padding-top:10px;margin-top:4px;">
+      <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx2);display:flex;justify-content:space-between;">
+        <span>${title}</span><span id="docSummary_${etapaKey}" style="font-weight:400;font-size:11px;"></span>
+      </div>
+      <div id="docRegistryWrap_${etapaKey}" style="color:var(--tx2);font-size:12px;">Cargando documentos…</div>
+    </div>`;
+  }
+
   // Stage forms
   function renderStageBlock(stg){
     const idx = STAGES_CFG.indexOf(stg);
@@ -1750,24 +1787,26 @@ function openModal(idx, ev){
             }
           </div>
         `).join('')}
+        ${renderDocPanelMarkup(stg, isLocked)}
       </div>
     </div>`;
   }
 
-  // Revisión Jurídica: registro dinámico de documentos (catálogo + registro real)
+  // Revisión Jurídica: registro dinámico de documentos (catálogo + registro real) — siempre activo
   const rjLocked = locks.rj;
+  if(!rjLocked) panelsToInit.push({key:'rj', etapaNombre:'Revisión Jurídica'});
   const juridicaBlock = `
     <div class="stg${rjLocked?' locked':''}" style="border-left:4px solid #16A085;">
       <div class="stg-h" style="background:rgba(22,160,133,.12);color:#117A65;" onclick="toggleStg(this)">
         <span>⑤ ⚖️ Revisión Jurídica${rjLocked?' 🔒':''}</span>
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:10px;opacity:.8;text-align:right;">${rjLocked?`<span class="stg-lock-msg">${lockMsg.rj}</span>`:`<span id="juridicaSummary">Cargando…</span>`}</span>
+          <span style="font-size:10px;opacity:.8;text-align:right;">${rjLocked?`<span class="stg-lock-msg">${lockMsg.rj}</span>`:`<span id="docSummary_rj">Cargando…</span>`}</span>
           <span>▼</span>
         </div>
       </div>
       <div class="stg-b" style="grid-template-columns:1fr;">
         <div class="fg full">
-          <div id="docRegistryWrap" style="color:var(--tx2);font-size:12px;">Cargando documentos…</div>
+          <div id="docRegistryWrap_rj" style="color:var(--tx2);font-size:12px;">Cargando documentos…</div>
         </div>
       </div>
     </div>`;
@@ -1776,8 +1815,9 @@ function openModal(idx, ev){
   const beforeJuridica = STAGES_CFG.slice(0,4).map(renderStageBlock).join('');
   const afterJuridica = STAGES_CFG.slice(4).map(renderStageBlock).join('');
 
-  // Cursos sujeto (al final, sin contenido por ahora — se desbloquea junto con Docs Implementación)
+  // Cursos sujeto (al final — se desbloquea junto con Docs Implementación, documentos opcionales)
   const cursosLocked = locks.cursos;
+  const cursosDocPanel = renderDocPanelMarkup({key:'cursos', docEtapa:'Cursos sujeto', docMode:'toggle'}, cursosLocked);
   const cursosBlock = `
     <div class="stg${cursosLocked?' locked':''}" style="border-left:4px solid #8E44AD;">
       <div class="stg-h" style="background:rgba(142,68,173,.12);color:#7D3C98;" onclick="toggleStg(this)">
@@ -1789,6 +1829,7 @@ function openModal(idx, ev){
       </div>
       <div class="stg-b">
         <div class="fg full" style="color:var(--tx2);font-size:12px;">Sección en desarrollo — sin campos configurados aún.</div>
+        ${cursosDocPanel}
       </div>
     </div>`;
 
@@ -1797,8 +1838,9 @@ function openModal(idx, ev){
   document.getElementById('mBody').innerHTML = html;
   document.getElementById('overlay').classList.add('open');
 
-  // Cargar registro de documentos (Revisión Jurídica) de forma asíncrona, solo si no está bloqueada
-  if(!rjLocked) renderDocRegistry(rec);
+  // Cargar documentos del sujeto/acción una sola vez, e inicializar los paneles
+  // que deben mostrarse abiertos (siempre-activos o ya con datos guardados)
+  initAllDocPanels(rec, panelsToInit);
 }
 
 function toggleStg(el){
@@ -1811,14 +1853,14 @@ function toggleStg(el){
 }
 
 // ══════════════════════════════════════════════════════
-// COMPONENTE: Registro de documentos (Revisión Jurídica)
+// COMPONENTE GENÉRICO: Registro de documentos por etapa
+// (usado por todas las etapas: activables y siempre-activas)
 // ══════════════════════════════════════════════════════
-const ETAPA_JURIDICA = 'Revisión Jurídica';
-let docRegistryRows = []; // filas actualmente mostradas (incluye nuevas sin guardar)
-let docRegistryRec = null;
+let modalAllDocs = [];       // todos los documentos (todas las etapas) del registro abierto en el modal
+const docRegistryState = {}; // { [etapaKey]: { etapaNombre, rec, rows:[...] } }
 
 const ESTADO_DOC_COLORS = {
-  '': 'gy', 'Pendiente':'rd', 'En proceso':'yn', 'Completado':'ok'
+  '': 'gy', 'Pendiente':'rd', 'En proceso':'yn', 'Aprobado':'ok', 'Rechazado':'rd', 'Completado':'ok'
 };
 
 function estadoDocBadge(estado){
@@ -1826,38 +1868,65 @@ function estadoDocBadge(estado){
   return `<span class="sm sm-${color}" style="width:20px;height:20px;font-size:10px;display:inline-flex;">${smIcon(color)}</span>`;
 }
 
-async function renderDocRegistry(rec){
-  docRegistryRec = rec;
-  const registros = await fetchDocumentos(rec.id, rec.accion_id);
-  docRegistryRows = registros.map(r=>({
-    id_registro: r.ID_Registro,
-    id_doc: r.ID_Doc,
-    nombre: r.Nombre_Documento,
-    fecha: r.Fecha_Registro,
-    estado: r.Estado || '',
-    observaciones: r.Observaciones || '',
-    isNew: false,
-  }));
-  drawDocRegistryTable();
+// Carga (una sola vez por apertura de modal) TODOS los documentos del sujeto/acción abierto
+async function loadModalDocs(rec){
+  modalAllDocs = await fetchDocumentos(rec.id, rec.accion_id);
 }
 
-function drawDocRegistryTable(){
-  const wrap = document.getElementById('docRegistryWrap');
+function docsForEtapaLocal(etapaNombre){
+  return modalAllDocs.filter(d => d.Etapa === etapaNombre);
+}
+
+// Inicializa y dibuja el panel de documentos de una etapa específica
+function initDocPanel(etapaKey, etapaNombre, rec){
+  const registros = docsForEtapaLocal(etapaNombre);
+  docRegistryState[etapaKey] = {
+    etapaNombre, rec,
+    rows: registros.map(r=>({
+      id_registro: r.ID_Registro, id_doc: r.ID_Doc, nombre: r.Nombre_Documento,
+      fecha: r.Fecha_Registro, estado: r.Estado || '', observaciones: r.Observaciones || '', isNew:false,
+    })),
+  };
+  drawDocRegistryTable(etapaKey);
+}
+
+// Carga modalAllDocs una vez y luego inicializa todos los paneles que deben verse abiertos
+async function initAllDocPanels(rec, panels){
+  await loadModalDocs(rec);
+  panels.forEach(p => initDocPanel(p.key, p.etapaNombre, rec));
+}
+
+// Activa (despliega) el panel de documentos de una etapa opcional, llamado desde el botón "➕ Activar"
+function activateDocPanel(etapaKey, etapaNombre){
+  const toggleWrap = document.getElementById('docToggleWrap_'+etapaKey);
+  const panelWrap = document.getElementById('docPanelWrap_'+etapaKey);
+  if(toggleWrap) toggleWrap.style.display = 'none';
+  if(panelWrap) panelWrap.style.display = 'block';
+  initDocPanel(etapaKey, etapaNombre, ALL[editIdx]);
+}
+
+function drawDocRegistryTable(etapaKey){
+  const state = docRegistryState[etapaKey];
+  if(!state) return;
+  const wrap = document.getElementById('docRegistryWrap_'+etapaKey);
   if(!wrap) return;
 
-  // Resumen en el encabezado de la sección
-  const summary = document.getElementById('juridicaSummary');
+  const summary = document.getElementById('docSummary_'+etapaKey);
   if(summary){
-    if(docRegistryRows.length===0) summary.textContent = 'Sin documentos';
+    if(state.rows.length===0) summary.textContent = 'Sin documentos';
     else {
-      const completados = docRegistryRows.filter(r=>r.estado==='Completado').length;
-      summary.textContent = `${completados}/${docRegistryRows.length} completados`;
+      const completados = state.rows.filter(r=>r.estado==='Completado'||r.estado==='Aprobado').length;
+      summary.textContent = `${completados}/${state.rows.length} completados`;
     }
   }
 
-  const docsCatalogo = docsForEtapa(ETAPA_JURIDICA);
+  const docsCatalogo = docsForEtapa(state.etapaNombre);
+  const isRJ = state.etapaNombre === 'Revisión Jurídica';
+  const estadoOpts = isRJ
+    ? ['','Pendiente','En proceso','Aprobado','Rechazado','Completado']
+    : ['','Pendiente','En proceso','Completado'];
 
-  const rowsHtml = docRegistryRows.map((row, i)=>{
+  const rowsHtml = state.rows.map((row, i)=>{
     const docOptions = docsCatalogo.map(d=>
       `<option value="${d.ID_Doc}" data-nombre="${(d.Nombre_Documento||'').replace(/"/g,'&quot;')}" ${row.id_doc===d.ID_Doc?'selected':''}>${d.Nombre_Documento}</option>`
     ).join('');
@@ -1865,7 +1934,7 @@ function drawDocRegistryTable(){
     return `
     <tr data-row="${i}">
       <td style="padding:6px;min-width:220px;">
-        <select class="fc doc-select" onchange="onDocSelectChange(${i}, this)" style="font-size:12px;">
+        <select class="fc doc-select" onchange="onDocSelectChange('${etapaKey}',${i}, this)" style="font-size:12px;">
           <option value="">— Seleccionar documento —</option>
           ${docOptions}
           ${isCustom?`<option value="${row.id_doc}" selected data-nombre="${row.nombre.replace(/"/g,'&quot;')}">${row.nombre}</option>`:''}
@@ -1875,20 +1944,17 @@ function drawDocRegistryTable(){
           style="font-size:12px;margin-top:4px;display:${row.id_doc==='__new__'?'block':'none'};">
       </td>
       <td style="padding:6px;min-width:130px;">
-        <input type="date" class="fc doc-fecha" value="${row.fecha||''}" onchange="onDocFieldChange(${i},'fecha',this.value)" style="font-size:12px;">
+        <input type="date" class="fc doc-fecha" value="${row.fecha||''}" onchange="onDocFieldChange('${etapaKey}',${i},'fecha',this.value)" style="font-size:12px;">
       </td>
       <td style="padding:6px;min-width:140px;">
-        <select class="fc doc-estado" onchange="onDocFieldChange(${i},'estado',this.value)" style="font-size:12px;">
-          ${['','Pendiente','En proceso','Completado'].map(o=>`<option value="${o}" ${row.estado===o?'selected':''}>${o||'— Sin estado —'}</option>`).join('')}
+        <select class="fc doc-estado" onchange="onDocFieldChange('${etapaKey}',${i},'estado',this.value)" style="font-size:12px;">
+          ${estadoOpts.map(o=>`<option value="${o}" ${row.estado===o?'selected':''}>${o||'— Sin estado —'}</option>`).join('')}
         </select>
       </td>
       <td style="padding:6px;text-align:center;">${estadoDocBadge(row.estado)}</td>
       <td style="padding:6px;text-align:center;white-space:nowrap;">
-        ${row.isNew
-          ? `<button class="btn btn-ac btn-sm" onclick="saveDocRow(${i})">💾</button>`
-          : `<button class="btn btn-sec btn-sm" onclick="saveDocRow(${i})" title="Guardar cambios">💾</button>`
-        }
-        <button class="btn btn-sec btn-sm" onclick="removeDocRow(${i})" title="Eliminar" style="color:var(--rd);">🗑️</button>
+        <button class="btn btn-sec btn-sm" onclick="saveDocRow('${etapaKey}',${i})" title="Guardar cambios">💾</button>
+        <button class="btn btn-sec btn-sm" onclick="removeDocRow('${etapaKey}',${i})" title="Eliminar" style="color:var(--rd);">🗑️</button>
       </td>
     </tr>`;
   }).join('');
@@ -1907,15 +1973,15 @@ function drawDocRegistryTable(){
         </thead>
         <tbody>${rowsHtml || ''}</tbody>
       </table>
-      ${docRegistryRows.length===0?'<div style="padding:10px;color:var(--tx2);font-size:12px;">No hay documentos registrados para esta acción.</div>':''}
+      ${state.rows.length===0?'<div style="padding:10px;color:var(--tx2);font-size:12px;">No hay documentos registrados para esta etapa.</div>':''}
     </div>
-    <button class="btn btn-sec btn-sm" style="margin-top:10px;" onclick="addDocRow()">➕ Agregar documento</button>
+    <button class="btn btn-sec btn-sm" style="margin-top:10px;" onclick="addDocRow('${etapaKey}')">➕ Agregar documento</button>
   `;
 }
 
-function onDocSelectChange(i, selectEl){
+function onDocSelectChange(etapaKey, i, selectEl){
   const val = selectEl.value;
-  const row = docRegistryRows[i];
+  const row = docRegistryState[etapaKey].rows[i];
   const newNameInput = selectEl.parentElement.querySelector('.doc-new-name');
   if(val === '__new__'){
     row.id_doc = '__new__';
@@ -1930,33 +1996,36 @@ function onDocSelectChange(i, selectEl){
   }
 }
 
-function onDocFieldChange(i, field, value){
-  docRegistryRows[i][field] = value;
+function onDocFieldChange(etapaKey, i, field, value){
+  docRegistryState[etapaKey].rows[i][field] = value;
 }
 
-function addDocRow(){
-  docRegistryRows.push({id_registro:'', id_doc:'', nombre:'', fecha:'', estado:'', observaciones:'', isNew:true});
-  drawDocRegistryTable();
+function addDocRow(etapaKey){
+  docRegistryState[etapaKey].rows.push({id_registro:'', id_doc:'', nombre:'', fecha:'', estado:'', observaciones:'', isNew:true});
+  drawDocRegistryTable(etapaKey);
 }
 
-async function removeDocRow(i){
-  const row = docRegistryRows[i];
+async function removeDocRow(etapaKey, i){
+  const row = docRegistryState[etapaKey].rows[i];
   if(row.id_registro){
     if(!confirm(`¿Eliminar el documento "${row.nombre}" del registro?`)) return;
     const res = await deleteDocumentoRegistro(row.id_registro);
     if(!res.ok){ showToast('⚠️ Error al eliminar: '+(res.msg||''),'t-er'); return; }
     showToast('🗑️ Documento eliminado','t-ok');
+    loadAllDocumentos(); // refresca la caché global (afecta filtros/bloqueo en próxima apertura)
   }
-  docRegistryRows.splice(i,1);
-  drawDocRegistryTable();
+  docRegistryState[etapaKey].rows.splice(i,1);
+  drawDocRegistryTable(etapaKey);
 }
 
-async function saveDocRow(i){
-  const row = docRegistryRows[i];
-  const rec = docRegistryRec;
+async function saveDocRow(etapaKey, i){
+  const state = docRegistryState[etapaKey];
+  const row = state.rows[i];
+  const rec = state.rec;
+  const etapaNombre = state.etapaNombre;
 
   // Leer valores actuales desde el DOM (por si el usuario escribió nombre nuevo)
-  const tr = document.querySelector(`tr[data-row="${i}"]`);
+  const tr = document.querySelector(`#docRegistryWrap_${etapaKey} tr[data-row="${i}"]`);
   const selectEl = tr.querySelector('.doc-select');
   const newNameInput = tr.querySelector('.doc-new-name');
   const fecha = tr.querySelector('.doc-fecha').value;
@@ -1969,7 +2038,7 @@ async function saveDocRow(i){
     const nuevoNombre = newNameInput.value.trim();
     if(!nuevoNombre){ showToast('⚠️ Escribe el nombre del nuevo documento','t-er'); return; }
     // Crear en catálogo primero
-    const catRes = await addDocAlCatalogo(nuevoNombre, ETAPA_JURIDICA, '');
+    const catRes = await addDocAlCatalogo(nuevoNombre, etapaNombre, '');
     if(!catRes.ok){ showToast('⚠️ Error creando documento en catálogo','t-er'); return; }
     idDoc = catRes.id_doc;
     nombre = nuevoNombre;
@@ -1981,7 +2050,7 @@ async function saveDocRow(i){
     id_registro: row.id_registro || '',
     ID_Sujeto: rec.id,
     'ID_Acción': rec.accion_id,
-    Etapa: ETAPA_JURIDICA,
+    Etapa: etapaNombre,
     ID_Doc: idDoc,
     Nombre_Documento: nombre,
     Fecha_Registro: fecha,
@@ -2000,8 +2069,9 @@ async function saveDocRow(i){
   row.fecha = fecha;
   row.estado = estado;
   row.isNew = false;
-  drawDocRegistryTable();
+  drawDocRegistryTable(etapaKey);
   showToast('✅ Documento guardado','t-ok');
+  loadAllDocumentos(); // refresca la caché global (afecta filtros/bloqueo en próxima apertura)
 }
 
 
