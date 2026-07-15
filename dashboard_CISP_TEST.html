@@ -131,6 +131,32 @@ tbody td{padding:8px 10px;vertical-align:middle}
 .x-btn{background:none;border:none;color:var(--tx2);font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
 .x-btn:hover{color:var(--tx)}
 /* STAGE FORMS */
+/* ── Full-page detail view ─────────────────────── */
+.dp-ov{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .22s ease;}
+.dp-ov.open{transform:translateX(0);}
+.dp-hdr{display:flex;align-items:flex-start;gap:12px;padding:12px 20px;background:var(--s1);border-bottom:1px solid var(--bd);flex-shrink:0;}
+.dp-hdr-info{flex:1;min-width:0;}
+.dp-hdr-title{font-size:16px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dp-hdr-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--tx2);margin-top:4px;}
+.dp-hdr-desc{font-size:11px;color:var(--tx2);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.dp-hdr-acts{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0;}
+.dp-body{flex:1;display:flex;overflow:hidden;}
+.dp-sidebar{width:195px;flex-shrink:0;border-right:1px solid var(--bd);background:var(--s1);overflow-y:auto;display:flex;flex-direction:column;padding:8px 0;}
+.dp-nav{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;transition:background .12s;font-size:12px;color:var(--tx2);user-select:none;}
+.dp-nav:hover{background:var(--s2);}
+.dp-nav.active{background:var(--s2);border-right:3px solid var(--ac);color:var(--ac);font-weight:600;}
+.dp-nav.locked{opacity:.5;cursor:not-allowed;}
+.dp-nav-sep{border-top:1px solid var(--bd);margin:6px 0;}
+.dp-nav-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2);padding:4px 12px;margin-top:2px;}
+.dp-panel{flex:1;overflow-y:auto;padding:20px;background:var(--bg);}
+.dp-section-title{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;}
+.dp-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:10px;border-top:1px solid var(--bd);}
+.sm-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.sm-dot-rd{background:var(--rd);}
+.sm-dot-yn{background:var(--yn);}
+.sm-dot-ok{background:var(--ok);}
+.sm-dot-gy{background:var(--gy);}
+
 .stg{border:1px solid var(--bd);border-radius:9px;overflow:hidden;margin-bottom:10px}
 .stg.locked{opacity:.55}
 .stg.locked .stg-h{cursor:not-allowed}
@@ -385,6 +411,28 @@ tbody td{padding:8px 10px;vertical-align:middle}
         <div id="noAlerts" style="text-align:center;padding:40px;color:var(--tx2);display:none;">✅ Sin alertas activas con los filtros seleccionados</div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- DETAIL PAGE (full-screen, slides in from right) -->
+<div class="dp-ov" id="detailPage">
+  <div class="dp-hdr">
+    <div class="dp-hdr-info">
+      <div class="dp-hdr-title" id="dpTitle"></div>
+      <div class="dp-hdr-meta" id="dpMeta"></div>
+      <div class="dp-hdr-desc" id="dpDesc"></div>
+    </div>
+    <div class="dp-hdr-acts">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="dpEstadoBadge"></span>
+        <button class="btn btn-sec btn-sm" id="dpSuspendBtn"></button>
+        <button class="btn btn-sec btn-sm" onclick="closeDetail()" style="font-size:16px;padding:4px 10px;">✕</button>
+      </div>
+    </div>
+  </div>
+  <div class="dp-body">
+    <div class="dp-sidebar" id="dpSidebar"></div>
+    <div class="dp-panel" id="dpPanel"></div>
   </div>
 </div>
 
@@ -1047,7 +1095,7 @@ function smLabel(color,est,days){
 function renderStageCell(rec, stageDef, openOnClick){
   if(stageDef.autoIdx === null){
     // Placeholder: Revisión Jurídica / Cursos sujeto — aún sin sistema de estado propio
-    const click = openOnClick ? `onclick="openModal(${rec._i},event)"` : '';
+    const click = openOnClick ? `onclick="openDetail(${rec._i},event)"` : '';
     return `<td class="sm-wrap">
       <div class="sm sm-gy" title="${stageDef.full}: próximamente" ${click} style="opacity:.5;">—</div>
     </td>`;
@@ -1061,7 +1109,7 @@ function renderStageCell(rec, stageDef, openOnClick){
   const label = smLabel(color,est,days);
   const koboC = !kobo?'na':hasSi(kobo)?'ok':'no';
   const venc = color==='rd'&&days&&days>DAYS_LIMIT;
-  const click = openOnClick ? `onclick="openModal(${rec._i},event)"` : '';
+  const click = openOnClick ? `onclick="openDetail(${rec._i},event)"` : '';
   return `<td class="sm-wrap">
     <div class="sm sm-${color}" title="${label}" ${click}>${smIcon(color)}</div>
     ${hasVal(autoEstado(rec,s))?`<div class="kobo-d ko-${koboC}"></div>`:''}
@@ -1239,7 +1287,7 @@ function renderTable(){
       ? `<span style="background:rgba(0,200,212,.1);color:var(--ac);padding:2px 6px;border-radius:3px;font-size:10px;">${rec.estado_accion}</span>`
       : `<span style="color:var(--gy);font-size:10px;">—</span>`;
 
-    return `<tr onclick="openModal(${rec._i},event)">
+    return `<tr onclick="openDetail(${rec._i},event)">
       <td>${tipoBadge}${sus?`<br>${susTag}`:''}</td>
       <td style="color:var(--tx2);font-size:11px;">${rec.id}</td>
       <td style="color:var(--ac);font-weight:700;font-size:11px;white-space:nowrap;">${rec.accion_id}</td>
@@ -1459,19 +1507,19 @@ function renderProfTable(d){
             const stages = STAGE_DISPLAY.map(stageDef=>{
               if(stageDef.autoIdx===null){
                 return `<td style="text-align:center;padding:6px;">
-                  <div class="sm sm-gy" style="width:22px;height:22px;font-size:10px;margin:0 auto;opacity:.5;" title="${stageDef.full}: próximamente" onclick="openModal(${rec._i},event)">—</div>
+                  <div class="sm sm-gy" style="width:22px;height:22px;font-size:10px;margin:0 auto;opacity:.5;" title="${stageDef.full}: próximamente" onclick="openDetail(${rec._i},event)">—</div>
                 </td>`;
               }
               const s = stageDef.autoIdx;
               const color = smColor(rec,s);
               const label = smLabel(color, autoEstado(rec,s), null);
               return `<td style="text-align:center;padding:6px;">
-                <div class="sm sm-${color}" style="width:22px;height:22px;font-size:10px;margin:0 auto;" title="${label}" onclick="openModal(${rec._i},event)">${smIcon(color)}</div>
+                <div class="sm sm-${color}" style="width:22px;height:22px;font-size:10px;margin:0 auto;" title="${label}" onclick="openDetail(${rec._i},event)">${smIcon(color)}</div>
               </td>`;
             }).join('');
             const prog = calcProg(rec);
             const pColor = prog===100?'var(--ok)':prog>0?'var(--yn)':'var(--gy)';
-            return `<tr style="border-bottom:1px solid rgba(148,163,184,.3);cursor:pointer;transition:background .12s;" onmouseover="this.style.background='rgba(0,200,212,.04)'" onmouseout="this.style.background=''" onclick="openModal(${rec._i},event)">
+            return `<tr style="border-bottom:1px solid rgba(148,163,184,.3);cursor:pointer;transition:background .12s;" onmouseover="this.style.background='rgba(0,200,212,.04)'" onmouseout="this.style.background=''" onclick="openDetail(${rec._i},event)">
               <td style="padding:7px 10px;color:var(--tx2);font-size:11px;">${rec.id}</td>
               <td style="padding:7px 10px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${rec.nombre}">${rec.nombre}</td>
               <td style="padding:7px 10px;color:var(--ac);font-weight:700;font-size:11px;">${rec.accion_id}</td>
@@ -1602,7 +1650,7 @@ function renderAlerts(){
   na.style.display='none';
 
   ab.innerHTML = sortedAlerts.map(a=>`
-    <tr class="alert-row" onclick="openModal(${a.rec._i},event)" style="cursor:pointer;">
+    <tr class="alert-row" onclick="openDetail(${a.rec._i},event)" style="cursor:pointer;">
       <td class="src-nm" title="${a.rec.nombre}" style="max-width:200px;">${a.rec.nombre}</td>
       <td style="color:var(--ac);font-weight:700;font-size:11px;">${a.rec.accion_id}</td>
       <td style="font-size:12px;white-space:nowrap;">
@@ -1611,7 +1659,7 @@ function renderAlerts(){
       <td><span class="alert-tag">⚠ ${a.msg}</span></td>
       <td style="font-size:11px;color:var(--tx2);">${stgNames[a.stage]}</td>
       <td style="font-size:12px;font-weight:800;color:${a.days&&a.days>DAYS_LIMIT?'var(--rd)':'var(--tx2)'};">${a.days!=null?a.days+'d':'—'}</td>
-      <td><button class="btn btn-sec btn-sm" onclick="openModal(${a.rec._i},event)">✏️ Actualizar</button></td>
+      <td><button class="btn btn-sec btn-sm" onclick="openDetail(${a.rec._i},event)">✏️ Actualizar</button></td>
     </tr>
   `).join('');
 }
@@ -2217,6 +2265,510 @@ async function saveDocRow(etapaKey, i){
   refreshAfterDocChange(rec);
 }
 
+
+// ══════════════════════════════════════════════════════
+// PANTALLA COMPLETA DE DETALLE — openDetail / closeDetail
+// ══════════════════════════════════════════════════════
+let currentSection = 'diag';
+let PROFESIONALES_CONVENIO = []; // catálogo de profesionales CISP
+let misionState = null;          // misión activa del registro abierto
+let desembolsosState = [];        // desembolsos del registro abierto
+
+// Carga catálogo de profesionales de convenio
+async function loadProfesionalesConvenio(){
+  if(PROFESIONALES_CONVENIO.length) return;
+  try {
+    const url = SCRIPT_URL + '?action=getProfesionales&t=' + Date.now();
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    if(json.ok) PROFESIONALES_CONVENIO = json.profesionales || [];
+  } catch(e){ console.warn('No se cargaron profesionales:', e); }
+}
+
+function smDotClass(rec, autoIdx){
+  if(autoIdx === null) return 'sm-dot-gy';
+  const e = autoEstado(rec, autoIdx).toLowerCase();
+  if(e === 'completado') return 'sm-dot-ok';
+  if(e === 'en proceso') return 'sm-dot-yn';
+  if(e === 'pendiente')  return 'sm-dot-rd';
+  return 'sm-dot-gy';
+}
+
+function buildSidebar(rec){
+  const locks = computeStageLocks(rec);
+  const sections = [
+    {key:'diag',  label:'① Diagnóstico',       autoIdx:0},
+    {key:'cont',  label:'② Contactabilidad',    autoIdx:1},
+    {key:'val',   label:'③ Validación',         autoIdx:2},
+    {key:'rad',   label:'④ Radicación',         autoIdx:3},
+    {key:'rj',    label:'⑤ Rev. Jurídica',      autoIdx:null, special:true},
+    {key:'firma', label:'⑥ Firma',              autoIdx:4},
+    {key:'doc',   label:'⑦ Docs Impl.',         autoIdx:5},
+    {key:'cursos',label:'⑧ Cursos sujeto',      autoIdx:null},
+  ];
+  let html = '<div class="dp-nav-lbl">Etapas</div>';
+  sections.forEach(s => {
+    const locked = locks[s.key];
+    const dotCls = locked ? 'sm-dot-gy' : smDotClass(rec, s.autoIdx);
+    const lockIcon = locked ? ' 🔒' : '';
+    html += `<div class="dp-nav${s.key===currentSection?' active':''}${locked?' locked':''}"
+      onclick="${locked?'':''}_selectSection('${s.key}')">
+      <span class="sm-dot ${dotCls}"></span>${s.label}${lockIcon}
+    </div>`;
+  });
+  html += '<div class="dp-nav-sep"></div>';
+  html += '<div class="dp-nav-lbl">Gestión</div>';
+  html += `<div class="dp-nav${'mision'===currentSection?' active':''}" onclick="_selectSection('mision')">
+    ✈️ Asig. de misión</div>`;
+  html += `<div class="dp-nav${'desembolsos'===currentSection?' active':''}" onclick="_selectSection('desembolsos')">
+    💰 Desembolsos</div>`;
+  document.getElementById('dpSidebar').innerHTML = html;
+}
+
+async function openDetail(idx, ev){
+  if(ev) ev.stopPropagation();
+  editIdx = idx;
+  const rec = ALL[idx];
+  currentSection = 'diag';
+
+  // Header
+  document.getElementById('dpTitle').textContent = rec.nombre || '—';
+  document.getElementById('dpMeta').innerHTML = [
+    `ID: ${rec.id}`,
+    `Acción: ${rec.accion_id}`,
+    `Responsable: ${rec.responsable||'—'}`,
+    `${rec.zona||''} · ${rec.municipio||''}, ${rec.departamento||''}`,
+    rec.tipo === 'Ordenes Judiciales' ? '<span style="color:var(--oj);">OJ</span>' : '<span style="color:var(--ni);">ANI</span>',
+  ].map(t=>`<span>${t}</span>`).join('');
+  document.getElementById('dpDesc').textContent = rec.accion || '—';
+
+  const est = rec.estado_accion || '—';
+  document.getElementById('dpEstadoBadge').innerHTML = `<span class="badge" style="background:var(--s2);border:1px solid var(--bd);padding:2px 10px;border-radius:20px;font-size:11px;">${est}</span>`;
+  const susp = isSuspended(rec);
+  document.getElementById('dpSuspendBtn').textContent = susp ? '▶ Reactivar' : '⏸ Suspender';
+  document.getElementById('dpSuspendBtn').onclick = () => toggleSuspension(rec);
+
+  // Show page
+  document.getElementById('detailPage').classList.add('open');
+  document.getElementById('dpPanel').innerHTML = '<div style="padding:40px;text-align:center;color:var(--tx2);">Cargando…</div>';
+
+  // Load background data
+  await Promise.all([
+    loadProfesionalesConvenio(),
+    loadCatalogos(),
+    loadModalDocs(rec),
+  ]);
+
+  buildSidebar(rec);
+  await _selectSection('diag');
+}
+
+function closeDetail(){
+  document.getElementById('detailPage').classList.remove('open');
+  editIdx = null;
+  misionState = null;
+  desembolsosState = [];
+  Object.keys(docRegistryState).forEach(k => delete docRegistryState[k]);
+}
+
+async function _selectSection(key){
+  if(!ALL[editIdx]) return;
+  const rec = ALL[editIdx];
+  const locks = computeStageLocks(rec);
+  if(locks[key]) return; // bloqueada
+  currentSection = key;
+  buildSidebar(rec);
+  const panel = document.getElementById('dpPanel');
+  panel.innerHTML = '<div style="padding:40px;text-align:center;color:var(--tx2);">Cargando…</div>';
+
+  const stgMap = {diag:0, cont:1, val:2, rad:3, firma:4, doc:5};
+  if(stgMap[key] !== undefined){
+    renderStagePanelContent(rec, key);
+    // Init doc panels if needed
+    const stg = STAGES_CFG.find(s=>s.key===key);
+    if(stg && stg.docEtapa){
+      const hasExisting = docsForEtapaLocal(stg.docEtapa).length > 0;
+      if(stg.docMode==='always' || hasExisting) initDocPanel(key, stg.docEtapa, rec);
+    }
+    if(key==='rj') {
+      initDocPanel('rj','Revisión Jurídica', rec);
+    }
+  } else if(key==='rj'){
+    renderRJPanelContent(rec);
+    initDocPanel('rj','Revisión Jurídica', rec);
+  } else if(key==='cursos'){
+    panel.innerHTML = `<div class="dp-section-title">⑧ 🎓 Cursos sujeto</div>
+      <div style="color:var(--tx2);font-size:13px;">Sección en desarrollo — sin campos configurados aún.</div>`;
+  } else if(key==='mision'){
+    await renderMisionPanel(rec);
+  } else if(key==='desembolsos'){
+    await renderDesembolsosPanel(rec);
+  }
+}
+
+function renderStagePanelContent(rec, key){
+  const stg = STAGES_CFG.find(s=>s.key===key);
+  if(!stg) return;
+  const idx = STAGES_CFG.indexOf(stg);
+  const panel = document.getElementById('dpPanel');
+  const locks = computeStageLocks(rec);
+  const lockMsg = {
+    cont:'Complete primero Diagnóstico', val:'Complete primero Contactabilidad',
+    rad:'Complete primero Validación', rj:'Complete primero Radicación',
+    firma:'Apruebe los documentos radicados y complete los de Rev. Jurídica',
+    doc:'Complete primero Firma de Acuerdos', cursos:'Se habilita junto con Docs Implementación',
+  };
+  const isLocked = locks[stg.key];
+  panel.innerHTML = `
+    <div class="dp-section-title">${stg.label}
+      <span style="font-size:12px;font-weight:400;color:var(--tx2);">${isLocked?`🔒 ${lockMsg[stg.key]||''}`:smLabel(smColor(rec,idx),autoEstado(rec,idx),null)}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="stgFields_${key}">
+      ${stg.fields.map(f=>`
+        <div class="fg${f.k.includes('obs')?'':''}" style="${f.k.includes('obs')?'grid-column:1/-1;':''}">
+          <label class="fl">${f.l}</label>
+          ${f.t==='sel'
+            ?`<select class="fc" id="field_${f.k}"${isLocked?' disabled':''}>${f.opts.map(o=>`<option value="${o}"${rec[f.k]===o?' selected':''}>${o||'— Sin seleccionar —'}</option>`).join('')}</select>`
+            :f.t==='textarea'
+            ?`<textarea class="fc" id="field_${f.k}" rows="2" style="resize:vertical;font-family:inherit;"${isLocked?' disabled':''}>${rec[f.k]||''}</textarea>`
+            :`<input class="fc" type="${f.t}" id="field_${f.k}" value="${rec[f.k]||''}"${isLocked?' disabled':''}>`
+          }
+        </div>
+      `).join('')}
+    </div>
+    <div id="docPanelContainer_${key}" style="margin-top:14px;"></div>
+    <div class="dp-actions">
+      <button class="btn btn-sec btn-sm" onclick="refreshDetail()"><i class="ti ti-refresh"></i> Actualizar</button>
+      <button class="btn btn-sec btn-sm" onclick="closeDetail()">Cancelar</button>
+      <button class="btn btn-ac" onclick="saveRec()"><i class="ti ti-device-floppy"></i> Guardar</button>
+    </div>`;
+
+  // Inject doc panel markup
+  const docWrap = document.getElementById(`docPanelContainer_${key}`);
+  if(docWrap && stg.docEtapa){
+    const isLk = locks[stg.key];
+    const etapaNombre = stg.docEtapa;
+    const safeNombre = etapaNombre.replace(/'/g,"\\'");
+    const hasExisting = docsForEtapaLocal(etapaNombre).length > 0;
+    const alwaysOn = stg.docMode === 'always';
+    const startOpen = alwaysOn || hasExisting;
+    const title = stg.docTitle || ('📄 Documentos — '+etapaNombre);
+    if(startOpen && !isLk) {
+      docWrap.innerHTML = `<div style="border-top:1px solid var(--bd);padding-top:12px;">
+        <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx2);display:flex;justify-content:space-between;">
+          <span>${title}</span><span id="docSummary_${key}" style="font-weight:400;font-size:11px;"></span>
+        </div>
+        <div id="docRegistryWrap_${key}" style="color:var(--tx2);font-size:12px;">Cargando documentos…</div>
+      </div>`;
+    } else {
+      docWrap.innerHTML = `<div style="border-top:1px solid var(--bd);padding-top:12px;" id="docToggleWrap_${key}">
+        <button class="btn btn-sec btn-sm" ${isLk?'disabled':''} onclick="activateDocPanel('${key}','${safeNombre}')">➕ Activar registro de documentos</button>
+      </div>
+      <div id="docPanelWrap_${key}" style="display:none;border-top:1px solid var(--bd);padding-top:12px;">
+        <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tx2);display:flex;justify-content:space-between;">
+          <span>${title}</span><span id="docSummary_${key}" style="font-weight:400;font-size:11px;"></span>
+        </div>
+        <div id="docRegistryWrap_${key}" style="color:var(--tx2);font-size:12px;"></div>
+      </div>`;
+    }
+  }
+}
+
+function renderRJPanelContent(rec){
+  const panel = document.getElementById('dpPanel');
+  panel.innerHTML = `
+    <div class="dp-section-title">⑤ ⚖️ Revisión Jurídica
+      <span id="docSummary_rj" style="font-size:11px;font-weight:400;color:var(--tx2);"></span>
+    </div>
+    <div style="border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:14px;">
+      <div style="background:var(--s2);padding:8px 12px;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:space-between;">
+        <span>📥 Documentos radicados (para aprobar)</span>
+        <button class="btn btn-sec btn-sm" style="color:var(--or);border-color:var(--or);" onclick="openMissingDocsPrompt()">📨 Documentos faltantes</button>
+      </div>
+      <div id="radApprovalWrap" style="padding:8px;color:var(--tx2);font-size:12px;">Cargando…</div>
+    </div>
+    <div style="border:1px solid var(--bd);border-radius:8px;overflow:hidden;">
+      <div style="background:var(--s2);padding:8px 12px;font-weight:700;font-size:12px;">⚖️ Documentos propios de Revisión Jurídica</div>
+      <div style="padding:8px;">
+        <div id="docRegistryWrap_rj" style="color:var(--tx2);font-size:12px;">Cargando documentos…</div>
+      </div>
+    </div>
+    <div class="dp-actions">
+      <button class="btn btn-sec btn-sm" onclick="refreshDetail()"><i class="ti ti-refresh"></i> Actualizar</button>
+    </div>`;
+}
+
+async function refreshDetail(){
+  const idx = editIdx;
+  if(idx === null) return;
+  showToast('🔄 Actualizando datos…','t-ok');
+  await loadFromSheets();
+  if(editIdx === null) editIdx = idx;
+  await openDetail(idx);
+}
+
+// ── Misión ────────────────────────────────────────────
+async function renderMisionPanel(rec){
+  const panel = document.getElementById('dpPanel');
+  const url = SCRIPT_URL + '?action=getMisiones&id_sujeto='+encodeURIComponent(rec.id)+'&id_accion='+encodeURIComponent(rec.accion_id)+'&t='+Date.now();
+  let misiones = [];
+  try {
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    if(json.ok) misiones = json.misiones || [];
+  } catch(e){}
+
+  // Usar la misión más reciente o vaciar para crear nueva
+  misionState = misiones.length ? misiones[misiones.length-1] : null;
+  const m = misionState || {};
+  const profs = m.profesionales || [];
+  const profOptions = PROFESIONALES_CONVENIO.map(p=>
+    `<option value="${p.ID_Profesional}" data-nombre="${p.Nombre_Completo}">${p.Nombre_Completo}</option>`
+  ).join('');
+
+  panel.innerHTML = `
+    <div class="dp-section-title">✈️ Asignación de misión
+      ${misiones.length>1?`<span style="font-size:11px;font-weight:400;color:var(--tx2);">${misiones.length} misiones registradas</span>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div><label class="fl">Fecha inicio</label><input class="fc" type="date" id="mis_fecha_inicio" value="${m.Fecha_Inicio||''}"></div>
+      <div><label class="fl">Fecha fin</label><input class="fc" type="date" id="mis_fecha_fin" value="${m.Fecha_Fin||''}"></div>
+      <div><label class="fl">Departamento</label><input class="fc" id="mis_departamento" value="${m.Departamento||''}" placeholder="Ej. Cauca"></div>
+      <div><label class="fl">Municipio</label><input class="fc" id="mis_municipio" value="${m.Municipio||''}" placeholder="Ej. Guapí"></div>
+      <div style="grid-column:1/-1;"><label class="fl">Observaciones</label>
+        <textarea class="fc" id="mis_observaciones" rows="2" style="resize:vertical;font-family:inherit;">${m.Observaciones||''}</textarea></div>
+    </div>
+    <div class="dp-actions" style="margin-bottom:14px;">
+      <button class="btn btn-sec btn-sm" onclick="refreshDetail()"><i class="ti ti-refresh"></i> Actualizar</button>
+      <button class="btn btn-sec btn-sm" onclick="_selectSection('mision')">Cancelar</button>
+      <button class="btn btn-ac" onclick="saveMisionForm()"><i class="ti ti-device-floppy"></i> Guardar</button>
+    </div>
+    <div style="border-top:1px solid var(--bd);padding-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2);">Profesionales en esta misión</span>
+        <button class="btn btn-sec btn-sm" onclick="addProfRow()">➕ Agregar profesional</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;" id="misProfsTable">
+        <thead><tr style="background:var(--s2);">
+          <th style="padding:6px 8px;text-align:left;color:var(--tx2);font-size:11px;">#</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--tx2);font-size:11px;">Profesional</th>
+          <th style="padding:6px 8px;width:40px;"></th>
+        </tr></thead>
+        <tbody id="misProfsBody">
+          ${profs.length===0?'<tr><td colspan="3" style="padding:10px;color:var(--tx2);">Sin profesionales asignados. Agrega uno con el botón de arriba.</td></tr>':''}
+          ${profs.map((p,i)=>`
+          <tr style="border-top:1px solid var(--bd);" data-rel="${p.ID_Relacion}">
+            <td style="padding:7px 8px;color:var(--tx2);">${i+1}</td>
+            <td style="padding:7px 8px;font-weight:500;">${p.Nombre_Profesional||p.ID_Profesional}</td>
+            <td style="padding:7px 8px;text-align:center;">
+              <button class="btn btn-sec btn-sm" style="color:var(--rd);" onclick="removeProfRow('${p.ID_Relacion}')">🗑️</button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function addProfRow(){
+  const body = document.getElementById('misProfsBody');
+  if(!body) return;
+  const profOptions = PROFESIONALES_CONVENIO.map(p=>
+    `<option value="${p.ID_Profesional}" data-nombre="${p.Nombre_Completo}">${p.Nombre_Completo}</option>`
+  ).join('');
+  const tr = document.createElement('tr');
+  tr.style.borderTop = '1px solid var(--bd)';
+  tr.dataset.rel = '__new__';
+  tr.innerHTML = `
+    <td style="padding:7px 8px;color:var(--tx2);">—</td>
+    <td style="padding:7px 8px;">
+      <select class="fc prof-sel" style="font-size:12px;" onchange="onProfSelChange(this)">
+        <option value="">— Seleccionar —</option>
+        ${profOptions}
+        <option value="__nuevo__">➕ Agregar nuevo profesional…</option>
+      </select>
+      <input class="fc prof-nuevo" placeholder="Nombre completo del nuevo profesional" style="font-size:12px;display:none;margin-top:4px;">
+    </td>
+    <td style="padding:7px 8px;text-align:center;">
+      <button class="btn btn-sec btn-sm" style="color:var(--rd);" onclick="this.closest('tr').remove()">🗑️</button>
+    </td>`;
+  // Remove "sin profesionales" row if present
+  const emptyRow = body.querySelector('td[colspan="3"]');
+  if(emptyRow) emptyRow.closest('tr').remove();
+  body.appendChild(tr);
+}
+
+function onProfSelChange(sel){
+  const input = sel.parentElement.querySelector('.prof-nuevo');
+  input.style.display = sel.value === '__nuevo__' ? 'block' : 'none';
+}
+
+async function saveMisionForm(){
+  const rec = ALL[editIdx];
+  const payload = {
+    'ID_Sujeto': rec.id,
+    'ID_Acción': rec.accion_id,
+    'Fecha_Inicio': document.getElementById('mis_fecha_inicio').value,
+    'Fecha_Fin': document.getElementById('mis_fecha_fin').value,
+    'Departamento': document.getElementById('mis_departamento').value,
+    'Municipio': document.getElementById('mis_municipio').value,
+    'Observaciones': document.getElementById('mis_observaciones').value,
+  };
+  if(misionState) payload.id_mision = misionState.ID_Mision;
+
+  showToast('💾 Guardando misión…','t-ok');
+  const url = SCRIPT_URL + '?action=saveMision&data=' + encodeURIComponent(JSON.stringify(payload));
+  const res = await fetch(url, {mode:'cors'});
+  const json = await res.json();
+  if(!json.ok){ showToast('⚠️ Error: '+(json.msg||''),'t-er'); return; }
+  const misionId = json.id_mision;
+  if(!misionState) misionState = {ID_Mision: misionId};
+
+  // Save new professionals
+  const newRows = document.querySelectorAll('#misProfsBody tr[data-rel="__new__"]');
+  for(const tr of newRows){
+    const sel = tr.querySelector('.prof-sel');
+    const input = tr.querySelector('.prof-nuevo');
+    let idProf = sel.value;
+    let nombre = sel.options[sel.selectedIndex]?.dataset?.nombre || '';
+
+    if(idProf === '__nuevo__'){
+      const nuevoNombre = input.value.trim();
+      if(!nuevoNombre){ showToast('⚠️ Escribe el nombre del nuevo profesional','t-er'); continue; }
+      const addUrl = SCRIPT_URL + '?action=addProfesional&data=' + encodeURIComponent(JSON.stringify({nombre:nuevoNombre, entidad:'CISP'}));
+      const addRes = await fetch(addUrl, {mode:'cors'});
+      const addJson = await addRes.json();
+      if(!addJson.ok) continue;
+      idProf = addJson.id_profesional;
+      nombre = nuevoNombre;
+      PROFESIONALES_CONVENIO.push({ID_Profesional:idProf, Nombre_Completo:nombre, Entidad:'CISP'});
+    }
+    if(!idProf) continue;
+
+    const relPayload = {ID_Mision:misionId, ID_Profesional:idProf, Nombre_Profesional:nombre};
+    const relUrl = SCRIPT_URL + '?action=addMisionProf&data=' + encodeURIComponent(JSON.stringify(relPayload));
+    await fetch(relUrl, {mode:'cors'});
+  }
+  showToast('✅ Misión guardada','t-ok');
+  await renderMisionPanel(rec);
+}
+
+async function removeProfRow(idRelacion){
+  if(!confirm('¿Quitar este profesional de la misión?')) return;
+  const url = SCRIPT_URL + '?action=removeMisionProf&id_relacion=' + encodeURIComponent(idRelacion) + '&t=' + Date.now();
+  const res = await fetch(url, {mode:'cors'});
+  const json = await res.json();
+  if(!json.ok){ showToast('⚠️ Error al eliminar','t-er'); return; }
+  showToast('🗑️ Profesional eliminado','t-ok');
+  await renderMisionPanel(ALL[editIdx]);
+}
+
+// ── Desembolsos ───────────────────────────────────────
+async function renderDesembolsosPanel(rec){
+  const panel = document.getElementById('dpPanel');
+  const url = SCRIPT_URL + '?action=getDesembolsos&id_sujeto='+encodeURIComponent(rec.id)+'&id_accion='+encodeURIComponent(rec.accion_id)+'&t='+Date.now();
+  let desembolsos = [];
+  try {
+    const res = await fetch(url, {mode:'cors'});
+    const json = await res.json();
+    if(json.ok) desembolsos = json.desembolsos || [];
+  } catch(e){}
+  desembolsosState = desembolsos;
+
+  const total = desembolsos.reduce((s,d)=>s+(parseFloat(d.Monto)||0), 0);
+  const totalFmt = total.toLocaleString('es-CO',{style:'currency',currency:'COP',minimumFractionDigits:0});
+
+  panel.innerHTML = `
+    <div class="dp-section-title">💰 Desembolsos presupuestales
+      ${total>0?`<span style="font-size:11px;font-weight:400;color:var(--tx2);">Total: ${totalFmt}</span>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div><label class="fl">Fecha</label><input class="fc" type="date" id="des_fecha"></div>
+      <div><label class="fl">Monto ($)</label><input class="fc" type="number" id="des_monto" placeholder="0"></div>
+      <div><label class="fl">% del total</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input class="fc" type="number" id="des_porcentaje" min="0" max="100" placeholder="0">
+          <span style="color:var(--tx2);font-size:13px;flex-shrink:0;">%</span>
+        </div>
+      </div>
+      <div><label class="fl">Estado</label>
+        <select class="fc" id="des_estado">
+          <option value="">— Seleccionar —</option>
+          <option>Pendiente</option>
+          <option>En proceso</option>
+          <option>Desembolsado</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1;"><label class="fl">Concepto</label>
+        <textarea class="fc" id="des_concepto" rows="2" style="resize:vertical;font-family:inherit;" placeholder="Describe el concepto del desembolso…"></textarea></div>
+    </div>
+    <div class="dp-actions" style="margin-bottom:14px;">
+      <button class="btn btn-sec btn-sm" onclick="refreshDetail()"><i class="ti ti-refresh"></i> Actualizar</button>
+      <button class="btn btn-sec btn-sm" onclick="_selectSection('desembolsos')">Cancelar</button>
+      <button class="btn btn-ac" onclick="saveDesembolsoForm()"><i class="ti ti-device-floppy"></i> Guardar</button>
+    </div>
+    <div style="border-top:1px solid var(--bd);padding-top:12px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2);margin-bottom:8px;">Historial de desembolsos</div>
+      ${desembolsos.length===0?'<div style="color:var(--tx2);font-size:12px;">Sin desembolsos registrados.</div>':''}
+      ${desembolsos.length?`
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:var(--s2);">
+          <th style="padding:6px 8px;text-align:left;color:var(--tx2);font-size:11px;width:95px;">Fecha</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--tx2);font-size:11px;width:120px;">Monto</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--tx2);font-size:11px;width:50px;">%</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--tx2);font-size:11px;">Concepto</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--tx2);font-size:11px;width:100px;">Estado</th>
+          <th style="padding:6px 8px;width:40px;"></th>
+        </tr></thead>
+        <tbody>
+          ${desembolsos.map(d=>{
+            const estadoColor = d.Estado==='Desembolsado'?'ok':d.Estado==='En proceso'?'yn':'gy';
+            const montoFmt = (parseFloat(d.Monto)||0).toLocaleString('es-CO',{style:'currency',currency:'COP',minimumFractionDigits:0});
+            return `<tr style="border-top:1px solid var(--bd);">
+              <td style="padding:7px 8px;color:var(--tx2);">${d.Fecha||'—'}</td>
+              <td style="padding:7px 8px;font-weight:500;">${montoFmt}</td>
+              <td style="padding:7px 8px;color:var(--tx2);">${d.Porcentaje||'—'}%</td>
+              <td style="padding:7px 8px;color:var(--tx2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.Concepto||'—'}</td>
+              <td style="padding:7px 8px;"><span class="sm sm-${estadoColor}" style="width:auto;border-radius:20px;padding:2px 8px;font-size:10px;height:auto;">${d.Estado||'—'}</span></td>
+              <td style="padding:7px 8px;text-align:center;">
+                <button class="btn btn-sec btn-sm" style="color:var(--rd);" onclick="deleteDesembolsoRow('${d.ID_Desembolso}')">🗑️</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`:''}
+    </div>`;
+}
+
+async function saveDesembolsoForm(){
+  const rec = ALL[editIdx];
+  const payload = {
+    'ID_Sujeto': rec.id,
+    'ID_Acción': rec.accion_id,
+    'Fecha': document.getElementById('des_fecha').value,
+    'Monto': document.getElementById('des_monto').value,
+    'Porcentaje': document.getElementById('des_porcentaje').value,
+    'Estado': document.getElementById('des_estado').value,
+    'Concepto': document.getElementById('des_concepto').value,
+  };
+  if(!payload.Monto && !payload.Concepto){ showToast('⚠️ Completa al menos el monto y el concepto','t-er'); return; }
+  showToast('💾 Guardando desembolso…','t-ok');
+  const url = SCRIPT_URL + '?action=saveDesembolso&data=' + encodeURIComponent(JSON.stringify(payload));
+  const res = await fetch(url, {mode:'cors'});
+  const json = await res.json();
+  if(!json.ok){ showToast('⚠️ Error: '+(json.msg||''),'t-er'); return; }
+  showToast('✅ Desembolso guardado','t-ok');
+  await renderDesembolsosPanel(rec);
+}
+
+async function deleteDesembolsoRow(idDesembolso){
+  if(!confirm('¿Eliminar este desembolso?')) return;
+  const url = SCRIPT_URL + '?action=deleteDesembolso&id_desembolso=' + encodeURIComponent(idDesembolso) + '&t=' + Date.now();
+  const res = await fetch(url, {mode:'cors'});
+  const json = await res.json();
+  if(!json.ok){ showToast('⚠️ Error al eliminar','t-er'); return; }
+  showToast('🗑️ Desembolso eliminado','t-ok');
+  await renderDesembolsosPanel(ALL[editIdx]);
+}
 
 function closeModal(){document.getElementById('overlay').classList.remove('open');editIdx=null;}
 function closeIf(e){if(e.target===document.getElementById('overlay')) closeModal();}
